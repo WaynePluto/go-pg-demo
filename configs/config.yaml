@@ -1,0 +1,27 @@
+# Development configuration file
+server:
+  port: 8080
+  mode: debug # debug, release, test
+
+database:
+  host: localhost
+  port: 5432
+  username: postgres
+  password: 0000
+  dbname: db_demo
+  sslmode: disable
+  max_idle_conns: 5
+  max_open_conns: 20
+  conn_max_lifetime: 60m
+
+log:
+  level: info # debug, info, warn, error
+  format: console # console, json
+  output: stdout # stdout, file
+
+jwt:
+  secret: my-secret-key
+  expire: 24h
+
+app:
+  name: go-pg-demo
