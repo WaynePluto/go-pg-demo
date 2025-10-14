@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutesV1 注册模板路由
+// 注册模板路由
 func RegisterRoutesV1(router *gin.RouterGroup, handler *TemplateHandler) {
 	templates := router.Group("/template")
 	{

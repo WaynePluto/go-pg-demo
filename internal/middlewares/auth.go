@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -18,11 +17,7 @@ func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
 		// 从请求头获取Authorization字段
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, map[string]interface{}{
-				"code": 401,
-				"msg":  "Authorization header is required",
-				"data": nil,
-			})
+			pkgs.Error(c, 401, "Authorization header is required")
 			return
 		}
 
@@ -31,11 +26,7 @@ func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString = authHeader[7:] // "Bearer " 长度为7
 		} else {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, map[string]interface{}{
-				"code": 401,
-				"msg":  "Authorization header must start with 'Bearer '",
-				"data": nil,
-			})
+			pkgs.Error(c, 401, "Authorization header must start with 'Bearer '")
 			return
 		}
 
@@ -50,21 +41,13 @@ func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
 
 		if err != nil {
 			logger.Error("Failed to parse JWT token", zap.Error(err))
-			c.AbortWithStatusJSON(http.StatusUnauthorized, map[string]interface{}{
-				"code": 401,
-				"msg":  "Invalid token",
-				"data": nil,
-			})
+			pkgs.Error(c, 401, "Invalid token")
 			return
 		}
 
 		// 检查token是否有效
 		if !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, map[string]interface{}{
-				"code": 401,
-				"msg":  "Invalid token",
-				"data": nil,
-			})
+			pkgs.Error(c, 401, "Invalid token")
 			return
 		}
 

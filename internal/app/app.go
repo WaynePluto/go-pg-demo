@@ -29,11 +29,12 @@ func NewApp(
 	logger *zap.Logger,
 	conf *pkgs.Config,
 	db *sqlx.DB,
-	registerRouter v1.RegisterRoutesFunc,
+	useRouterV1 v1.RegisterRouter,
 ) *App {
 
-	server.Use(middlewares.LoggerMiddleware(logger), middlewares.RecoveryMiddleware(logger))
-	registerRouter()
+	server.Use(middlewares.LoggerMiddleware(logger))
+	server.Use(middlewares.RecoveryMiddleware(logger))
+	useRouterV1()
 
 	return &App{
 		Server: server,

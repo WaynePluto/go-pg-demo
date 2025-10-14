@@ -29,8 +29,8 @@ func InitializeApp() (*App, func(), error) {
 		return nil, nil, err
 	}
 	templateHandler := template.NewTemplateHandler(db, logger)
-	registerRoutesFunc := v1.RegisterRoutes(engine, templateHandler)
-	app := NewApp(engine, logger, config, db, registerRoutesFunc)
+	registerRouter := v1.NewRegisterRouter(engine, templateHandler)
+	app := NewApp(engine, logger, config, db, registerRouter)
 	return app, func() {
 	}, nil
 }

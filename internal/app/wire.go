@@ -15,7 +15,7 @@ func InitializeApp() (*App, func(), error) {
 		NewGin,
 		pkgs.ProviderSet,
 		template.NewTemplateHandler,
-		v1.RegisterRoutes,
+		v1.NewRegisterRouter,
 		NewApp,
 	)
 	return nil, nil, nil

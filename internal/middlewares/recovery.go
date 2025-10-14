@@ -1,11 +1,12 @@
 package middlewares
 
 import (
-	"net/http"
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	"go-pg-demo/internal/pkgs"
 )
 
 // RecoveryMiddleware 恢复中间件，捕获任何panic并记录错误日志，防止服务崩溃
@@ -26,11 +27,7 @@ func RecoveryMiddleware(logger *zap.Logger) gin.HandlerFunc {
 				)
 
 				// 返回500错误
-				c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]interface{}{
-					"code": 500,
-					"msg":  "Internal Server Error",
-					"data": nil,
-				})
+				pkgs.Error(c, 500, "Internal Server Error")
 			}
 		}()
 		c.Next()
