@@ -1,32 +1,22 @@
 //go:build wireinject
-// +build wireinject
 
 package app
 
 import (
+	v1 "go-pg-demo/api/v1"
+	"go-pg-demo/internal/modules/template"
+	"go-pg-demo/internal/pkgs"
+
 	"github.com/google/wire"
-	"go.uber.org/zap"
-
-	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
-
-	"main/internal/middlewares"
-	"main/internal/modules/permission"
-	"main/internal/modules/role"
-	"main/internal/modules/template"
-	"main/internal/modules/user"
-	"main/internal/pkgs"
 )
 
-// InitializeApp 初始化应用
 func InitializeApp() (*App, func(), error) {
-	panic(wire.Build(
+	wire.Build(
+		NewGin,
 		pkgs.ProviderSet,
-		middlewares.ProviderSet,
-		user.ProviderSet,
-		permission.ProviderSet,
-		role.ProviderSet,
-		template.ProviderSet,
+		template.NewTemplateHandler,
+		v1.RegisterRoutes,
 		NewApp,
-	))
+	)
+	return nil, nil, nil
 }

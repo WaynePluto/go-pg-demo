@@ -6,14 +6,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes 注册所有路由
+type RegisterRoutesFunc func()
+
+// 注册所有路由
 func RegisterRoutes(
 	router *gin.Engine,
-
 	templateHandler *template.TemplateHandler,
-) {
-	api := router.Group("/api/v1")
+) RegisterRoutesFunc {
+	return func() {
+		api := router.Group("/v1")
+		// 注册模板路由
+		template.RegisterRoutesV1(api, templateHandler)
+	}
 
-	// 注册模板路由
-	template.RegisterRoutes(api, templateHandler)
 }

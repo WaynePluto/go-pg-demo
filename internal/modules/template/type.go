@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// TemplateEntity 定义领域模型
 type TemplateEntity struct {
 	ID        string    `db:"id"`
 	CreatedAt time.Time `db:"created_at"`
@@ -21,26 +20,38 @@ type CreateTemplateRequest struct {
 	Num  *int   `json:"num,omitempty" validate:"omitempty"`
 }
 
+// CreateTemplatesRequest 批量创建模板的请求 DTO
+type CreateTemplatesRequest struct {
+	Templates []CreateTemplateRequest `json:"templates" validate:"required,min=1,dive"`
+}
+
 // UpdateTemplateRequest 更新模板的请求 DTO
-// 使用指针来区分"未提供"和"提供空值"
 type UpdateTemplateRequest struct {
 	Name *string `json:"name,omitempty" validate:"omitempty"`
 	Num  *int    `json:"num,omitempty" validate:"omitempty"`
 }
 
-// --- 输出 DTO ---
+// DeleteTemplatesRequest 批量删除模板的请求 DTO
+type DeleteTemplatesRequest struct {
+	IDs []string `json:"ids" validate:"required,min=1"`
+}
 
-// TemplateResponse 返回给客户端的模板信息 DTO
-// 它只关心要展示什么，并隐藏了敏感信息
+// QueryTemplateRequest 查询模板的请求 DTO
+type QueryTemplateRequest struct {
+	Page     int    `form:"page,default=1" validate:"min=1"`
+	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100"`
+	Name     string `form:"name,omitempty" validate:"omitempty"`
+}
+
+// --- 输出 DTO ---
 type TemplateResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Num       *int   `json:"num,omitempty"`
-	CreatedAt string `json:"created_at"` // 格式化为字符串，更利于前端处理
+	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
 
-// TemplateListResponse 模板列表的响应 DTO，通常包含分页信息
 type TemplateListResponse struct {
 	List  []TemplateResponse `json:"list"`
 	Total int64              `json:"total"`

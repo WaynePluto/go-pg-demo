@@ -4,14 +4,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes 注册模板路由
-func RegisterRoutes(router *gin.RouterGroup, handler *TemplateHandler) {
-	templates := router.Group("/templates")
+// RegisterRoutesV1 注册模板路由
+func RegisterRoutesV1(router *gin.RouterGroup, handler *TemplateHandler) {
+	templates := router.Group("/template")
 	{
 		templates.POST("", handler.CreateTemplate)
-		templates.GET("/:id", handler.GetTemplate)
+		templates.GET("/:id", handler.GetTemplateByID)
 		templates.PUT("/:id", handler.UpdateTemplate)
 		templates.DELETE("/:id", handler.DeleteTemplate)
-		templates.GET("", handler.ListTemplates)
+		templates.POST("/batch-create", handler.CreateTemplateBatch)
+		templates.GET("/list", handler.QueryTemplateList)
+		templates.POST("/batch-delete", handler.DeleteTemplateBatch)
 	}
 }
