@@ -30,7 +30,12 @@ func NewApp(
 	conf *pkgs.Config,
 	db *sqlx.DB,
 	useRouterV1 v1.RegisterRouter,
-) *App {
+) (*App, error) {
+
+	err := pkgs.RunMigrations(db, conf)
+	if err != nil {
+		return nil, err
+	}
 
 	server.Use(middlewares.LoggerMiddleware(logger))
 	server.Use(middlewares.RecoveryMiddleware(logger))
@@ -41,7 +46,7 @@ func NewApp(
 		Logger: logger,
 		Conf:   conf,
 		DB:     db,
-	}
+	}, nil
 }
 
 // Run 启动 http 服务

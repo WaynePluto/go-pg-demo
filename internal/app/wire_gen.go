@@ -30,7 +30,10 @@ func InitializeApp() (*App, func(), error) {
 	}
 	templateHandler := template.NewTemplateHandler(db, logger)
 	registerRouter := v1.NewRegisterRouter(engine, templateHandler)
-	app := NewApp(engine, logger, config, db, registerRouter)
+	app, err := NewApp(engine, logger, config, db, registerRouter)
+	if err != nil {
+		return nil, nil, err
+	}
 	return app, func() {
 	}, nil
 }
