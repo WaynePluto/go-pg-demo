@@ -5,7 +5,7 @@ import (
 )
 
 // 注册模板路由
-func RegisterRoutesV1(router *gin.RouterGroup, handler *TemplateHandler) {
+func (handler *Handler) RegisterRoutesV1(router *gin.RouterGroup) {
 	templates := router.Group("/template")
 	{
 		templates.POST("", handler.CreateTemplate)

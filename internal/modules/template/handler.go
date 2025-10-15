@@ -10,19 +10,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type TemplateHandler struct {
+type Handler struct {
 	db     *sqlx.DB
 	logger *zap.Logger
 }
 
-func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger) *TemplateHandler {
-	return &TemplateHandler{
+func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger) *Handler {
+	return &Handler{
 		db:     db,
 		logger: logger,
 	}
 }
 
-func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
+func (h *Handler) CreateTemplate(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -50,7 +50,7 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	pkgs.Success(c, entity.ID)
 }
 
-func (h *TemplateHandler) CreateTemplateBatch(c *gin.Context) {
+func (h *Handler) CreateTemplateBatch(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateTemplatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -109,7 +109,7 @@ func (h *TemplateHandler) CreateTemplateBatch(c *gin.Context) {
 	pkgs.Success(c, createdIDs)
 }
 
-func (h *TemplateHandler) GetTemplateByID(c *gin.Context) {
+func (h *Handler) GetTemplateByID(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -131,7 +131,7 @@ func (h *TemplateHandler) GetTemplateByID(c *gin.Context) {
 	pkgs.Success(c, entity)
 }
 
-func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
+func (h *Handler) UpdateTemplate(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -168,7 +168,7 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 	pkgs.Success(c, nil)
 }
 
-func (h *TemplateHandler) DeleteTemplate(c *gin.Context) {
+func (h *Handler) DeleteTemplate(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -191,7 +191,7 @@ func (h *TemplateHandler) DeleteTemplate(c *gin.Context) {
 	pkgs.Success(c, affectedRows)
 }
 
-func (h *TemplateHandler) DeleteTemplateBatch(c *gin.Context) {
+func (h *Handler) DeleteTemplateBatch(c *gin.Context) {
 	// 绑定请求参数
 	var req DeleteTemplatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -218,7 +218,7 @@ func (h *TemplateHandler) DeleteTemplateBatch(c *gin.Context) {
 	pkgs.Success(c, nil)
 }
 
-func (h *TemplateHandler) QueryTemplateList(c *gin.Context) {
+func (h *Handler) QueryTemplateList(c *gin.Context) {
 	// 绑定请求参数
 	var req QueryTemplateRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

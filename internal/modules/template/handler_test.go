@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	testHandler *TemplateHandler
+	testHandler *Handler
 	testDB      *sqlx.DB
 	testLogger  *zap.Logger
 )
@@ -59,7 +59,7 @@ func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	router := gin.Default()
 	// 使用 routes.go 中的方法注册路由
 	apiGroup := router.Group("/v1")
-	RegisterRoutesV1(apiGroup, testHandler)
+	testHandler.RegisterRoutesV1(apiGroup)
 	router.ServeHTTP(rr, req)
 	return rr
 }

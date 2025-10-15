@@ -19,43 +19,43 @@
 
 ```
 my-project/
-├── api/                    # API 版本与路由定义 (对外入口)
-│   └── v1/
-│       └── router.go       # v1 版本的路由注册
 ├── cmd/                    # 应用程序入口
 │   └── server/
 │       └── main.go         # main 函数，初始化并启动服务
+├── configs/                # 配置文件
+│   ├── config.yaml
+│   ├── config.dev.yaml
+│   └── config.prod.yaml
 ├── internal/               # 内部私有代码，外部无法导入
+│   ├── api/                    # API 版本与路由定义 (对外入口)
+│   │   └── v1/
+│   │       └── router.go       # v1 版本的路由注册
 │   ├── app/                        # 应用组装层 
 │   │   ├── app.go                  # 定义 App 结构体，持有 Server, DB 等
 │   │   ├── wire.go                 # 核心依赖注入定义文件
-│   │   └── wiregen.go              # 由 wire 自动生成
+│   │   └── wire_gen.go              # 由 wire 自动生成
+│   ├── middlewares/         # 全局中间件
+│   │   ├── provider.go     # 注册中间件函数的构造函数
+│   │   ├── auth.go         # JWT 认证中间件
+│   │   ├── logger.go       # 日志中间件
+│   │   └── recovery.go     # 异常恢复中间件
 │   ├── modules/            # 业务模块 (垂直分块)
 │   │   ├── template/                   # 示例模块
-│   │   │   ├── provider.go             # 模块内 Provider 集合，提供routes, handler构造集合(wire.NewSet)
-│   │   │   ├── routes.go               # 注册路由组，函数本身就是一个提供者
+│   │   │   ├── handler_test.go         # HTTP 处理器测试代码
 │   │   │   ├── handler.go              # HTTP 处理器，校验输入，包装输出
+│   │   │   ├── routes.go               # 注册路由组
 │   │   │   └── type.go                 # 类型定义，比如entity、dto
 │   │   ├── user/...            # 用户模块 (参考示例)
 │   │   ├── permission/...      # 权限模块 (参考示例)
 │   │   └── role/...            # 角色模块 (参考示例)
-│   ├── middlewares/         # 全局中间件
-│   │   ├── provider.go     # wire.NewSet包装中间件集合
-│   │   ├── auth.go         # JWT 认证中间件
-│   │   ├── logger.go       # 日志中间件
-│   │   └── recovery.go     # 异常恢复中间件
 │   └── pkgs/                # 内部共享包
 │       ├── provider.go       # wire.NewSet包装配置集合(NewConf, NewDB, NewLogger)
 │       ├── config.go         # 配置加载逻辑
 │       ├── database.go       # 数据库连接与初始化
 │       ├── migrate.go        # 数据库迁移，在database.go连接后执行
-│       ├── migrations        # 数据库迁移sql文件目录
+│       ├── migrations        # 数据库迁移集合
 │       ├── logger.go         # zap 日志
 │       └── response.go       # 统一响应格式，不需要作为提供者
-├── configs/                # 配置文件
-│   ├── config.yaml
-│   ├── config.dev.yaml
-│   └── config.prod.yaml
 ├── scripts/                # 构建、部署等脚本
 ├── go.mod
 └── go.sum

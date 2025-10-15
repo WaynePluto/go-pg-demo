@@ -2,7 +2,8 @@ package app
 
 import (
 	"fmt"
-	v1 "go-pg-demo/api/v1"
+
+	v1 "go-pg-demo/internal/api/v1"
 	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/pkgs"
 
@@ -30,15 +31,14 @@ func NewApp(
 	conf *pkgs.Config,
 	db *sqlx.DB,
 	useRouterV1 v1.RegisterRouter,
+	useMiddlewares middlewares.UseMiddlewares,
 ) (*App, error) {
 
 	err := pkgs.RunMigrations(db, conf)
 	if err != nil {
 		return nil, err
 	}
-
-	server.Use(middlewares.LoggerMiddleware(logger))
-	server.Use(middlewares.RecoveryMiddleware(logger))
+	useMiddlewares()
 	useRouterV1()
 
 	return &App{

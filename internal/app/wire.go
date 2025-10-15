@@ -3,7 +3,8 @@
 package app
 
 import (
-	v1 "go-pg-demo/api/v1"
+	v1 "go-pg-demo/internal/api/v1"
+	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/modules/template"
 	"go-pg-demo/internal/pkgs"
 
@@ -14,6 +15,7 @@ func InitializeApp() (*App, func(), error) {
 	wire.Build(
 		NewGin,
 		pkgs.ProviderSet,
+		middlewares.NewUseMiddlewares,
 		template.NewTemplateHandler,
 		v1.NewRegisterRouter,
 		NewApp,

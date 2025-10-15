@@ -7,7 +7,8 @@
 package app
 
 import (
-	"go-pg-demo/api/v1"
+	"go-pg-demo/internal/api/v1"
+	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/modules/template"
 	"go-pg-demo/internal/pkgs"
 )
@@ -28,9 +29,10 @@ func InitializeApp() (*App, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	templateHandler := template.NewTemplateHandler(db, logger)
-	registerRouter := v1.NewRegisterRouter(engine, templateHandler)
-	app, err := NewApp(engine, logger, config, db, registerRouter)
+	handler := template.NewTemplateHandler(db, logger)
+	registerRouter := v1.NewRegisterRouter(engine, handler)
+	useMiddlewares := middlewares.NewUseMiddlewares(engine, logger)
+	app, err := NewApp(engine, logger, config, db, registerRouter, useMiddlewares)
 	if err != nil {
 		return nil, nil, err
 	}
