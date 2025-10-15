@@ -6,8 +6,11 @@ import (
 	v1 "go-pg-demo/internal/api/v1"
 	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/pkgs"
+	_ "go-pg-demo/docs" // Swagger docs
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
@@ -40,6 +43,11 @@ func NewApp(
 	}
 	useMiddlewares()
 	useRouterV1()
+
+	// 添加Swagger路由，仅在非生产环境启用
+	if conf.Server.Mode != "release" {
+		server.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	return &App{
 		Server: server,

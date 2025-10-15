@@ -1,0 +1,344 @@
+basePath: /v1
+definitions:
+  pkgs.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      msg:
+        type: string
+    type: object
+  template.CreateTemplateRequest:
+    properties:
+      name:
+        type: string
+      num:
+        maximum: 100
+        minimum: 1
+        type: integer
+    required:
+    - name
+    type: object
+  template.CreateTemplatesRequest:
+    properties:
+      templates:
+        items:
+          $ref: '#/definitions/template.CreateTemplateRequest'
+        minItems: 1
+        type: array
+    required:
+    - templates
+    type: object
+  template.DeleteTemplatesRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  template.TemplateListResponse:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/template.TemplateResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  template.TemplateResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      num:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  template.UpdateTemplateRequest:
+    properties:
+      name:
+        type: string
+      num:
+        maximum: 100
+        minimum: 1
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: https://www.swagger.io/support
+  description: This is a sample server for go-pg-demo server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://swagger.io/terms/
+  title: Go-PG Demo API
+  version: "1.0"
+paths:
+  /template:
+    post:
+      consumes:
+      - application/json
+      description: 创建模板
+      parameters:
+      - description: 创建模板请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/template.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功，返回模板ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 创建模板
+      tags:
+      - template
+  /template/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除模板
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功，返回影响行数
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID删除模板
+      tags:
+      - template
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取模板
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回模板信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/template.TemplateResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 模板不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID获取模板
+      tags:
+      - template
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新模板
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新模板请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/template.UpdateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID更新模板
+      tags:
+      - template
+  /template/batch-create:
+    post:
+      consumes:
+      - application/json
+      description: 批量创建模板
+      parameters:
+      - description: 批量创建模板请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/template.CreateTemplatesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功，返回模板ID列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 批量创建模板
+      tags:
+      - template
+  /template/batch-delete:
+    post:
+      consumes:
+      - application/json
+      description: 批量删除模板
+      parameters:
+      - description: 批量删除模板请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/template.DeleteTemplatesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 批量删除模板
+      tags:
+      - template
+  /template/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取模板列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 模板名称
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回模板列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/template.TemplateListResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取模板列表
+      tags:
+      - template
+securityDefinitions:
+  JWT:
+    description: JWT token for authentication
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
