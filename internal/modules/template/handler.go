@@ -12,6 +12,7 @@
 package template
 
 import (
+	"database/sql"
 	"net/http"
 	"reflect"
 	"time"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
@@ -174,12 +176,18 @@ func (h *Handler) GetTemplateByID(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
+	// 验证ID是否为有效的UUID
+	if _, err := uuid.Parse(id); err != nil {
+		pkgs.Error(c, http.StatusNotFound, "Template not found")
+		return
+	}
+
 	// 数据库操作
 	var entity TemplateEntity
 	query := `SELECT id, name, num, created_at, updated_at FROM template WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err == sql.ErrNoRows {
 			pkgs.Error(c, http.StatusNotFound, "Template not found")
 			return
 		}
@@ -421,14 +429,14 @@ func (h *Handler) QueryTemplateList(c *gin.Context) {
 			UpdatedAt: entity.UpdatedAt.Format(time.RFC3339),
 		})
 	}
-	
+
 	pkgs.Success(c, gin.H{"list": responseEntities, "total": total})
 }
 
 // validateRequest 验证请求参数
 func (h *Handler) validateRequest(c *gin.Context, req interface{}) error {
 	validate := validator.New()
-	
+
 	if err := validate.Struct(req); err != nil {
 		// 获取第一个验证错误
 		if validationErrors, ok := err.(validator.ValidationErrors); ok && len(validationErrors) > 0 {

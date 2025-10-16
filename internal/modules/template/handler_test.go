@@ -64,117 +64,188 @@ func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	return rr
 }
 
-// TestTemplateHandler_HandleOne tests the creation, retrieval, updating, and deletion of a template
-func TestTemplateHandler_HandleOne(t *testing.T) {
-	var createdID string
-	var ok bool
-	// --- Create Template ---
-	{
+// setupTestTemplate 在数据库中创建一个模板用于测试，并注册一个清理函数以便在测试结束后删除它
+func setupTestTemplate(t *testing.T) TemplateEntity {
+	t.Helper()
+
+	num := 100
+	template := TemplateEntity{
+		Name: "Test Template",
+		Num:  &num,
+	}
+
+	// 直接在数据库中创建实体
+	query := `INSERT INTO template (name, num) VALUES ($1, $2) RETURNING id`
+	err := testDB.QueryRow(query, template.Name, *template.Num).Scan(&template.ID)
+	assert.NoError(t, err)
+
+	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
+	t.Cleanup(func() {
+		_, err := testDB.Exec("DELETE FROM template WHERE id = $1", template.ID)
+		if err != nil {
+			t.Errorf("Failed to clean up test template: %v", err)
+		}
+	})
+
+	return template
+}
+
+func TestCreateTemplate(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
 		num := 100
 		createReqBody := CreateTemplateRequest{
-			Name: "Test Template",
+			Name: "New Test Template",
 			Num:  &num,
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 
+		// Act
 		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
 
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code)
 		var createResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &createResp)
 		assert.NoError(t, err)
 		assert.Equal(t, 200, createResp.Code)
-		// Extract the ID from the response data
-		createdID, ok = createResp.Data.(string)
-		assert.True(t, ok, "Created ID should be a string")
-	}
 
-	// --- Get Template By ID ---
-	{
-		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+createdID, nil)
+		createdID, ok := createResp.Data.(string)
+		assert.True(t, ok)
+
+		// Cleanup
+		t.Cleanup(func() {
+			_, err := testDB.Exec("DELETE FROM template WHERE id = $1", createdID)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("Invalid Input - Missing Name", func(t *testing.T) {
+		// Arrange
+		num := 100
+		createReqBody := CreateTemplateRequest{
+			Num: &num, // Name is missing
+		}
+		bodyBytes, _ := json.Marshal(createReqBody)
+		req, _ := http.NewRequest(http.MethodPost, "/v1/template", bytes.NewBuffer(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Act
 		w := executeRequest(req)
+
+		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
-		// 为了更安全、清晰地访问嵌套字段，我们可以定义一个包含具体类型的响应结构
+		var errResp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &errResp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, errResp.Code)
+		assert.Contains(t, errResp.Msg, "Key: 'CreateTemplateRequest.Name' Error:Field validation for 'Name' failed on the 'required' tag")
+	})
+}
+
+func TestGetTemplate(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		template := setupTestTemplate(t)
+
+		// Act
+		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+template.ID, nil)
+		w := executeRequest(req)
+
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code)
 		type TemplateResponse struct {
 			Code int            `json:"code"`
-			Msg  string         `json:"msg"`
 			Data TemplateEntity `json:"data"`
 		}
-		var getOneResp TemplateResponse
-
-		err := json.Unmarshal(w.Body.Bytes(), &getOneResp)
+		var resp TemplateResponse
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, getOneResp.Code)
-		assert.Equal(t, "Test Template", getOneResp.Data.Name)
-		assert.Equal(t, 100, *getOneResp.Data.Num)
+		assert.Equal(t, http.StatusOK, resp.Code)
+		assert.Equal(t, template.Name, resp.Data.Name)
+		assert.Equal(t, *template.Num, *resp.Data.Num)
+	})
 
-	}
+	t.Run("Not Found", func(t *testing.T) {
+		// Arrange
+		nonExistentID := "a-b-c-d-e"
 
-	// --- update Template By ID ---
-	{
-		updateName := "Updated Test Template"
+		// Act
+		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+nonExistentID, nil)
+		w := executeRequest(req)
+
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code) // Handler returns 200 but with error code in body
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, resp.Code)
+		assert.Equal(t, "Template not found", resp.Msg)
+	})
+}
+
+func TestUpdateTemplate(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		template := setupTestTemplate(t)
+		updateName := "Updated Name"
 		updateReqBody := UpdateTemplateRequest{
 			Name: &updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+createdID, bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+template.ID, bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 
+		// Act
 		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
 
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code)
 		var updateResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &updateResp)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, updateResp.Code)
+		assert.Equal(t, http.StatusOK, updateResp.Code)
 
 		// Verify update
-		req, _ = http.NewRequest(http.MethodGet, "/v1/template/"+createdID, nil)
-		w = executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		type TemplateResponse struct {
-			Code int            `json:"code"`
-			Msg  string         `json:"msg"`
-			Data TemplateEntity `json:"data"`
-		}
-		var getOneResp TemplateResponse
-
-		err = json.Unmarshal(w.Body.Bytes(), &getOneResp)
+		var updatedTemplate TemplateEntity
+		err = testDB.Get(&updatedTemplate, "SELECT * FROM template WHERE id = $1", template.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, getOneResp.Code)
-		assert.Equal(t, updateName, getOneResp.Data.Name)
-		assert.Equal(t, 100, *getOneResp.Data.Num) // Num should not be changed
-	}
+		assert.Equal(t, updateName, updatedTemplate.Name)
+		assert.Equal(t, *template.Num, *updatedTemplate.Num) // Num should not change
+	})
+}
 
-	// -- Delete Template By ID --
-	{
-		req, _ := http.NewRequest(http.MethodDelete, "/v1/template/"+createdID, nil)
+func TestDeleteTemplate(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		template := setupTestTemplate(t)
+
+		// Act
+		req, _ := http.NewRequest(http.MethodDelete, "/v1/template/"+template.ID, nil)
 		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
 
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code)
 		var deleteResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &deleteResp)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, deleteResp.Code)
-		// 断言影响的行数, 转换为整数
+		assert.Equal(t, http.StatusOK, deleteResp.Code)
 		affectedRows := int(math.Round(deleteResp.Data.(float64)))
 		assert.Equal(t, 1, affectedRows)
 
 		// Verify deletion
-		req, _ = http.NewRequest(http.MethodGet, "/v1/template/"+createdID, nil)
-		w = executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
-	}
+		var count int
+		err = testDB.Get(&count, "SELECT COUNT(*) FROM template WHERE id = $1", template.ID)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
 }
 
-func TestTemplateHandler_HandleBatch(t *testing.T) {
-	var createdIDs []string
-
-	// --- Batch Create Templates ---
-	{
+func TestBatchCreateTemplates(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
 		num1, num2 := 200, 300
 		batchCreateReq := CreateTemplatesRequest{
 			Templates: []CreateTemplateRequest{
@@ -186,83 +257,94 @@ func TestTemplateHandler_HandleBatch(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-create", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 
+		// Act
 		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
 
+		// Assert
+		assert.Equal(t, http.StatusOK, w.Code)
 		var createResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &createResp)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, createResp.Code)
+		assert.Equal(t, http.StatusOK, createResp.Code)
 
-		// Extract the IDs from the response data
 		ids, ok := createResp.Data.([]interface{})
-		assert.True(t, ok, "Created IDs should be a slice of strings")
-		for _, id := range ids {
-			createdIDs = append(createdIDs, id.(string))
-		}
-		assert.Len(t, createdIDs, 2)
+		assert.True(t, ok)
+		assert.Len(t, ids, 2)
+
+		// Cleanup
+		t.Cleanup(func() {
+			for _, id := range ids {
+				_, err := testDB.Exec("DELETE FROM template WHERE id = $1", id.(string))
+				assert.NoError(t, err)
+			}
+		})
+	})
+}
+
+func TestQueryTemplateList(t *testing.T) {
+	// Arrange
+	template1 := setupTestTemplate(t)
+	template2 := setupTestTemplate(t)
+
+	// Act
+	req, _ := http.NewRequest(http.MethodGet, "/v1/template/list?page=1&pageSize=10", nil)
+	w := executeRequest(req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	type QueryResponseData struct {
+		List  []TemplateEntity `json:"list"`
+		Total int64            `json:"total"`
+	}
+	type QueryResponse struct {
+		Code int               `json:"code"`
+		Data QueryResponseData `json:"data"`
 	}
 
-	// --- Query Template List ---
-	{
-		req, _ := http.NewRequest(http.MethodGet, "/v1/template/list?page=1&pageSize=10", nil)
-		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
+	var queryResp QueryResponse
+	err := json.Unmarshal(w.Body.Bytes(), &queryResp)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, queryResp.Code)
+	assert.True(t, queryResp.Data.Total >= 2)
 
-		type QueryResponseData struct {
-			List  []TemplateEntity `json:"list"`
-			Total int64            `json:"total"`
-		}
-		type QueryResponse struct {
-			Code int               `json:"code"`
-			Msg  string            `json:"msg"`
-			Data QueryResponseData `json:"data"`
-		}
-
-		var queryResp QueryResponse
-		err := json.Unmarshal(w.Body.Bytes(), &queryResp)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, queryResp.Code)
-		// Since other tests might run, we check if at least the 2 created items are there.
-		assert.True(t, queryResp.Data.Total >= 2)
-		assert.True(t, len(queryResp.Data.List) >= 2)
-
-		// Verify that the retrieved IDs match the created IDs
-		retrievedIDs := make(map[string]bool)
-		for _, item := range queryResp.Data.List {
-			retrievedIDs[item.ID] = true
-		}
-
-		for _, id := range createdIDs {
-			assert.True(t, retrievedIDs[id], "Created ID %s should be in the list", id)
-		}
+	retrievedIDs := make(map[string]bool)
+	for _, item := range queryResp.Data.List {
+		retrievedIDs[item.ID] = true
 	}
+	assert.True(t, retrievedIDs[template1.ID])
+	assert.True(t, retrievedIDs[template2.ID])
+}
 
-	// --- Batch Delete Templates ---
-	{
-		deleteReqBody := DeleteTemplatesRequest{
-			IDs: createdIDs,
-		}
-		bodyBytes, _ := json.Marshal(deleteReqBody)
-		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-delete", bytes.NewBuffer(bodyBytes))
-		req.Header.Set("Content-Type", "application/json")
+func TestBatchDeleteTemplates(t *testing.T) {
+	// Arrange
+	template1 := setupTestTemplate(t)
+	template2 := setupTestTemplate(t)
+	idsToDelete := []string{template1.ID, template2.ID}
 
-		w := executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var deleteResp pkgs.Response
-		err := json.Unmarshal(w.Body.Bytes(), &deleteResp)
-		assert.NoError(t, err)
-		assert.Equal(t, 200, deleteResp.Code)
-
-		// Verify deletion by trying to get one of the deleted templates
-		req, _ = http.NewRequest(http.MethodGet, "/v1/template/"+createdIDs[0], nil)
-		w = executeRequest(req)
-		assert.Equal(t, http.StatusOK, w.Code) // The handler returns 200 even for not found, but the response body indicates the error
-		var getResp pkgs.Response
-		err = json.Unmarshal(w.Body.Bytes(), &getResp)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusNotFound, getResp.Code)
-		assert.Equal(t, "Template not found", getResp.Msg)
+	deleteReqBody := DeleteTemplatesRequest{
+		IDs: idsToDelete,
 	}
+	bodyBytes, _ := json.Marshal(deleteReqBody)
+	req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-delete", bytes.NewBuffer(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Act
+	w := executeRequest(req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, w.Code)
+	var deleteResp pkgs.Response
+	err := json.Unmarshal(w.Body.Bytes(), &deleteResp)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, deleteResp.Code)
+
+	// Verify deletion
+	var count int
+	query, args, err := sqlx.In("SELECT COUNT(*) FROM template WHERE id IN (?)", idsToDelete)
+	assert.NoError(t, err)
+	query = testDB.Rebind(query)
+	err = testDB.Get(&count, query, args...)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
 }
