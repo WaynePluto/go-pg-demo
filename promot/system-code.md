@@ -11,7 +11,7 @@
 ## 核心技术要求
 - Web 框架：Gin
 - 配置管理：Viper
-- 数据库：配合 sqlx 进行原生 SQL 操作
+- 数据库：Postgresql, 配合 sqlx 进行原生 SQL 操作
 - 日志记录：Zap
 - 身份认证：JWT
 - API 文档：Swagger
@@ -87,10 +87,11 @@
 2. 然后在internal/pkgs/provider.go文件内注册构造函数；
 3. 终端进入项目根目录，运行 `wire ./internal/app` 更新组件依赖；
 
-## 数据库建模规范
+## 数据库建表规范
 1. 数据表名使用单数名词；
-2. 对于关系模型，请你根据领域设计模型决定是选择关联表还是选择json/jsonb字段；
+2. 对于关系模型，请你根据领域设计模型决定：1.选择关联表；2.选择json/jsonb字段内嵌到主表中；
 3. 如果一个领域模型内有多个表，表名要加上领域名称的缩写； 
+4. 数据表前三个字段固定为:id(UUIDv7)、created_at(TIMESTAMPTZ)、updated_at(TIMESTAMPTZ)
 
 ## api路径规范
 1. 涉及资源的名词使用单数；

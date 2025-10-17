@@ -1,152 +1,52 @@
-# go-pg-demo
+# 基于AI开发的步骤
 
-一个基于 Go 语言构建的后端服务模板，旨在提供一个结构清晰、可扩展性强的 Web 服务基础框架。通过集成主流库和遵循最佳实践，帮助开发者快速搭建生产级应用。
+## 0. 先构建一个AI角色，用来生成领域模型设计方案
 
-## 功能特性
+我现在要在AI辅助下，主导开发一款web管理软件，现在需要用AI进行领域模型设计辅助，不涉及具体的代码开发，请你帮我思考一个相关的AI系统设定的提示词，比如你是一个xxx助手等等。
 
-- 基于 Gin 框架的 HTTP 路由与中间件支持
-- 使用 PostgreSQL 作为持久化存储，配合 sqlx 进行原生 SQL 操作
-- JWT 认证与权限控制（通过中间件实现）
-- 配置文件加载（YAML 格式 + 环境变量支持）
-- 数据库自动迁移（migrate/v4）
-- 统一响应格式封装
-- 依赖注入（Google Wire）
-- Swagger API 文档自动生成
+## 1. 领域模型设计(使用网页版AI)
 
-## 技术栈
+1. 使用system-ddd作为AI对话角色设定，给AI描述需求；
+2. 与AI持续对话，迭代方案；
 
-- Web 框架: github.com/gin-gonic/gin v1.11.0
-- 数据库驱动: github.com/lib/pq v1.10.9
-- SQL 辅助: github.com/jmoiron/sqlx v1.4.0
-- 数据库迁移: github.com/golang-migrate/migrate/v4 v4.19.0
-- 依赖注入: github.com/google/wire v0.7.0
-- 配置管理: github.com/spf13/viper v1.21.0
-- 日志库: go.uber.org/zap v1.27.0
-- JWT 认证: github.com/golang-jwt/jwt/v5 v5.3.0
-- Swagger 文档: github.com/swaggo/gin-swagger v1.6.0
-- 数据验证: github.com/go-playground/validator/v10
-- 测试辅助: github.com/stretchr/testify
+## 2. 基于领域模型设计开发模型(使用网页版AI)
 
-## 快速开始
+1. 使用system-code作为AI对话角色设定（这个开发的AI角色需要结合项目设定），增加领域模型设计方案上下文，然后输入用户指令
 
-### 环境要求
-
-- Go 1.21+
-- PostgreSQL 12+
-
-### 安装依赖
-
-```bash
-go mod download
+```md
+# 你的具体任务
+请你根据领域模型，设计如下内容：
+1. 需要创建的数据库表以及字段和字段类型（严格遵守数据库建表规范，不要写具体的建表语句）；
+2. 对外的api（遵守api路径规范）；
+3. 模型对应的module目录结构；
+4. 需要开发的中间件有哪些，具体什么功能；
+5. 需要开发的pkgs组件有哪些，具体什么功能。
+**注意**1. 绝对不要过度设计，要保持系统简洁；2.只需要设计，不要写具体的代码。
 ```
 
-### 配置数据库
+## 3. 根据AI生成的方案让AI编写代码开发步骤（使用编码智能体）
 
-复制配置文件:
+1. 使用system-code作为AI对话角色设定，增加领域模型上下文、开发模型上下文，然后输入用户指令
 
-```bash
-cp configs/config.dev.yaml.example configs/config.dev.yaml
+```md
+请你根据你的角色上下文，领域模型设计上下文，具体开发上下文，结合这个项目设计一下开发功能的步骤，不需要修改项目文件。
+比如第一步干什么，第二步干什么...
+这些步骤在后面会用来指导智能体编码。
+**注意：**
+1. 创建数据库迁移文件请你标记为终端运行migration命令，比如这个iacc功能，就是生成iacc_init文件。
+2. 需要创建目录和文件的时候，标记为智能体直接创建。
 ```
 
-修改 `configs/config.dev.yaml` 中的数据库配置:
+2. 对于AI生成的步骤进行人工微调。
 
-```yaml
-database:
-  host: localhost
-  port: 5432
-  user: your_user
-  password: your_password
-  dbname: your_database
-  sslmode: disable
+## 4. 根据AI生成的步骤，开始一步一步编写代码
+
+1. 使用system-code作为AI对话角色设定，增加代码步骤上下文
+
+```md
+请你根据上下文中的代码开发步骤，只需要完成第x步。
 ```
 
-### 运行服务
+2. 新开对话，完成第2步骤
 
-```bash
-cd cmd/server
-go run main.go
-```
-
-### 访问 Swagger 文档
-
-服务启动后，可以通过以下地址访问 Swagger API 文档：
-
-```
-http://localhost:8080/swagger/index.html
-```
-
-## 项目结构
-
-```
-.
-├── cmd                 # 应用程序入口
-│   └── server
-│       └── main.go
-├── configs             # 配置文件
-│   ├── config.dev.yaml
-│   ├── config.prod.yaml
-│   └── config.yaml
-├── internal            # 内部代码
-│   ├── api             # API 版本
-│   │   └── v1
-│   │       └── router.go
-│   ├── app             # 应用组装层
-│   │   ├── app.go
-│   │   ├── wire.go
-│   │   └── wire_gen.go
-│   ├── middlewares     # 中间件
-│   │   ├── auth.go
-│   │   ├── logger.go
-│   │   ├── provider.go
-│   │   └── recovery.go
-│   ├── modules         # 业务模块
-│   │   ├── permission
-│   │   │   └── permission.go
-│   │   ├── role
-│   │   │   └── role.go
-│   │   ├── template
-│   │   │   ├── handler.go
-│   │   │   ├── handler_test.go
-│   │   │   ├── routes.go
-│   │   │   └── type.go
-│   │   └── user
-│   │       └── user.go
-│   └── pkgs            # 内部共享包
-│       ├── migrations
-│       │   ├── 20251013153018_template.down.sql
-│       │   └── 20251013153018_template.up.sql
-│       ├── config.go
-│       ├── database.go
-│       ├── logger.go
-│       ├── migrate.go
-│       ├── provider.go
-│       └── response.go
-└── readme.md
-```
-
-## API 文档
-
-项目集成了 Swagger 来自动生成 API 文档。服务运行后，访问 `http://localhost:8080/swagger/index.html` 即可查看完整的 API 文档。
-
-## 依赖注入
-
-项目使用 Google Wire 进行依赖注入，简化了组件之间的依赖关系管理。
-
-生成依赖注入代码：
-
-```bash
-cd internal/app
-go generate
-```
-
-## 数据库迁移
-
-项目使用 golang-migrate 工具进行数据库迁移。在服务启动时会自动运行迁移脚本。
-
-## 测试
-
-运行测试：
-
-```bash
-go test ./...
-```
+3. 以此类推
