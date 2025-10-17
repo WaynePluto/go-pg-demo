@@ -77,7 +77,7 @@
 8. 在handler中实现业务需求，一个接口主要分为 绑定参数、验证参数、创建数据实体、数据库表操作、返回接口响应等几个步骤，然后给接口函数增加swagger文档注释；如果有跨表操作了，则在业务目录的service文件中定义相关的函数，接收db连接，返回跨表操作的结果。
 9. 在routes文件中实现路由注册, 涉及单个路由级别的权限校验，在这个文件内注册权限校验中间件；
 10. 在handler_test中编写测试代码。测试用例应遵循 `Arrange-Act-Assert` (AAA) 模式，并包含正常业务用例和参数异常用例。在每个测试开始前准备所需数据，测试结束后使用 `t.Cleanup()` 注册的函数来清理数据，以确保测试的独立性和可重复性；
-11. 在internal/api/v1/router.go中注册路由，在internal\app\wire.go文件中注册handler构造函数；
+11. 在internal/api/v1/router.go中注册路由，在internal/app/wire.go文件中注册handler构造函数；
 12. 终端运行`wire ./internal/app` 更新依赖。
 13. 终端运行测试命令 `go test ./internal/modules/xxx_name`
 
