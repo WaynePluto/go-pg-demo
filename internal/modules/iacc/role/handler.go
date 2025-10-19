@@ -5,42 +5,41 @@ import (
 	"net/http"
 	"time"
 
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	db       *sqlx.DB
-	logger   *zap.Logger
-	validate *validator.Validate
+	db        *sqlx.DB
+	logger    *zap.Logger
+	validator *pkgs.RequestValidator
 }
 
-func NewRoleHandler(db *sqlx.DB, logger *zap.Logger, validate *validator.Validate) *Handler {
+func NewRoleHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestValidator) *Handler {
 	return &Handler{
-		db:       db,
-		logger:   logger,
-		validate: validate,
+		db:        db,
+		logger:    logger,
+		validator: validator,
 	}
 }
 
 // CreateRole 创建角色
 //
-//	@Summary	创建角色
-//	@Description	创建角色
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		request	body	CreateRoleRequest	true	"创建角色请求参数"
-//	@Success	200		{object}	pkgs.Response{data=string}	"创建成功，返回角色ID"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/role [post]
-func (h *Handler) CreateRole(c *gin.Context) {
+//	@Summary  创建角色
+//	@Description  创建角色
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    request body  CreateRoleRequest true  "创建角色请求参数"
+//	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回角色ID"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /role [post]
+func (h *Handler) Create(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,8 +48,7 @@ func (h *Handler) CreateRole(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -68,7 +66,7 @@ func (h *Handler) CreateRole(c *gin.Context) {
 
 	// 数据库操作
 	query := `INSERT INTO iacc_role (id, created_at, updated_at, name, description, permissions) 
-	          VALUES (:id, :created_at, :updated_at, :name, :description, :permissions)`
+            VALUES (:id, :created_at, :updated_at, :name, :description, :permissions)`
 	_, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
 	if err != nil {
 		h.logger.Error("Failed to create role", zap.Error(err))
@@ -82,19 +80,19 @@ func (h *Handler) CreateRole(c *gin.Context) {
 
 // UpdateRole 更新角色
 //
-//	@Summary	更新角色
-//	@Description	更新角色
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string				true	"角色ID"
-//	@Param		request	body	UpdateRoleRequest	true	"更新角色请求参数"
-//	@Success	200		{object}	pkgs.Response{data=RoleResponse}	"更新成功，返回角色信息"
-//	@Failure	400		{object}	pkgs.Response						"请求参数错误"
-//	@Failure	404		{object}	pkgs.Response						"角色不存在"
-//	@Failure	500		{object}	pkgs.Response						"服务器内部错误"
-//	@Router		/role/{id} [put]
-func (h *Handler) UpdateRole(c *gin.Context) {
+//	@Summary  更新角色
+//	@Description  更新角色
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string        true  "角色ID"
+//	@Param    request body  UpdateRoleRequest true  "更新角色请求参数"
+//	@Success  200   {object}  pkgs.Response{data=RoleResponse}  "更新成功，返回角色信息"
+//	@Failure  400   {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404   {object}  pkgs.Response           "角色不存在"
+//	@Failure  500   {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /role/{id} [put]
+func (h *Handler) Update(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -112,8 +110,7 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -129,7 +126,7 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 
 	// 数据库操作
 	query := `UPDATE iacc_role SET updated_at=:updated_at, name=:name, description=:description, permissions=:permissions 
-	          WHERE id=:id`
+            WHERE id=:id`
 	result, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
 	if err != nil {
 		h.logger.Error("Failed to update role", zap.Error(err))
@@ -166,18 +163,18 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 
 // GetRoleByID 根据ID获取角色
 //
-//	@Summary	根据ID获取角色
-//	@Description	根据ID获取角色
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"角色ID"
-//	@Success	200	{object}	pkgs.Response{data=RoleResponse}	"获取成功，返回角色信息"
-//	@Failure	400	{object}	pkgs.Response						"请求参数错误"
-//	@Failure	404	{object}	pkgs.Response						"角色不存在"
-//	@Failure	500	{object}	pkgs.Response						"服务器内部错误"
-//	@Router		/role/{id} [get]
-func (h *Handler) GetRoleByID(c *gin.Context) {
+//	@Summary  根据ID获取角色
+//	@Description  根据ID获取角色
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "角色ID"
+//	@Success  200 {object}  pkgs.Response{data=RoleResponse}  "获取成功，返回角色信息"
+//	@Failure  400 {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response           "角色不存在"
+//	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /role/{id} [get]
+func (h *Handler) Get(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -208,20 +205,20 @@ func (h *Handler) GetRoleByID(c *gin.Context) {
 
 // ListRoles 获取角色列表
 //
-//	@Summary	获取角色列表
-//	@Description	获取角色列表
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		page		query	int		false	"页码"	default(1)
-//	@Param		page_size	query	int		false	"每页数量"	default(10)
-//	@Param		name		query	string	false	"角色名"
-//	@Param		description	query	string	false	"角色描述"
-//	@Success	200	{object}	pkgs.Response{data=ListRolesResponse}	"获取成功，返回角色列表"
-//	@Failure	400	{object}	pkgs.Response							"请求参数错误"
-//	@Failure	500	{object}	pkgs.Response							"服务器内部错误"
-//	@Router		/role/list [get]
-func (h *Handler) ListRoles(c *gin.Context) {
+//	@Summary  获取角色列表
+//	@Description  获取角色列表
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    page    query int   false "页码"  default(1)
+//	@Param    page_size query int   false "每页数量"  default(10)
+//	@Param    name    query string  false "角色名"
+//	@Param    description query string  false "角色描述"
+//	@Success  200 {object}  pkgs.Response{data=ListRolesResponse} "获取成功，返回角色列表"
+//	@Failure  400 {object}  pkgs.Response             "请求参数错误"
+//	@Failure  500 {object}  pkgs.Response             "服务器内部错误"
+//	@Router   /role/list [get]
+func (h *Handler) List(c *gin.Context) {
 	// 绑定请求参数
 	var req ListRolesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -230,8 +227,7 @@ func (h *Handler) ListRoles(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -304,17 +300,17 @@ func (h *Handler) ListRoles(c *gin.Context) {
 
 // AssignPermission 分配权限
 //
-//	@Summary	分配权限
-//	@Description	为角色分配权限
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string					true	"角色ID"
-//	@Param		request	body	AssignPermissionRequest	true	"分配权限请求参数"
-//	@Success	200		{object}	pkgs.Response{data=string}		"分配成功"
-//	@Failure	400		{object}	pkgs.Response					"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response					"服务器内部错误"
-//	@Router		/role/{id}/permission [post]
+//	@Summary  分配权限
+//	@Description  为角色分配权限
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string          true  "角色ID"
+//	@Param    request body  AssignPermissionRequest true  "分配权限请求参数"
+//	@Success  200   {object}  pkgs.Response{data=string}    "分配成功"
+//	@Failure  400   {object}  pkgs.Response         "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response         "服务器内部错误"
+//	@Router   /role/{id}/permission [post]
 func (h *Handler) AssignPermission(c *gin.Context) {
 	// 获取角色ID
 	roleID := c.Param("id")
@@ -333,8 +329,7 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -368,18 +363,18 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 
 // RemovePermission 移除权限
 //
-//	@Summary	移除权限
-//	@Description	为角色移除权限
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		id				path	string	true	"角色ID"
-//	@Param		permission_key	path	string	true	"权限键"
-//	@Success	200		{object}	pkgs.Response	"移除成功"
-//	@Failure	400		{object}	pkgs.Response	"请求参数错误"
-//	@Failure	404		{object}	pkgs.Response	"角色或权限不存在"
-//	@Failure	500		{object}	pkgs.Response	"服务器内部错误"
-//	@Router		/role/{id}/permission/{permission_key} [delete]
+//	@Summary  移除权限
+//	@Description  为角色移除权限
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id        path  string  true  "角色ID"
+//	@Param    permission_key  path  string  true  "权限键"
+//	@Success  200   {object}  pkgs.Response "移除成功"
+//	@Failure  400   {object}  pkgs.Response "请求参数错误"
+//	@Failure  404   {object}  pkgs.Response "角色或权限不存在"
+//	@Failure  500   {object}  pkgs.Response "服务器内部错误"
+//	@Router   /role/{id}/permission/{permission_key} [delete]
 func (h *Handler) RemovePermission(c *gin.Context) {
 	// 获取角色ID和权限键
 	roleID := c.Param("id")
@@ -410,19 +405,19 @@ func (h *Handler) RemovePermission(c *gin.Context) {
 
 // DeleteRole 根据ID删除角色
 //
-//	@Summary	根据ID删除角色
-//	@Description	根据ID删除角色
-//	@Tags		role
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"角色ID"
-//	@Success	200	{object}	pkgs.Response{data=int64}	"删除成功，返回影响行数"
-//	@Failure	400	{object}	pkgs.Response				"请求参数错误"
-//	@Failure	404	{object}	pkgs.Response				"角色不存在"
-//	@Failure	409	{object}	pkgs.Response				"角色正在被使用，无法删除"
-//	@Failure	500	{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/role/{id} [delete]
-func (h *Handler) DeleteRole(c *gin.Context) {
+//	@Summary  根据ID删除角色
+//	@Description  根据ID删除角色
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "角色ID"
+//	@Success  200 {object}  pkgs.Response{data=int64} "删除成功，返回影响行数"
+//	@Failure  400 {object}  pkgs.Response       "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response       "角色不存在"
+//	@Failure  409 {object}  pkgs.Response       "角色正在被使用，无法删除"
+//	@Failure  500 {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /role/{id} [delete]
+func (h *Handler) Delete(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 

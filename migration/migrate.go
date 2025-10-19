@@ -1,8 +1,9 @@
-package pkgs
+package migration
 
 import (
 	"embed"
 	"fmt"
+	"go-pg-demo/pkgs"
 	"net/url"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -11,11 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-//go:embed migrations/*.sql
+//go:embed db/*.sql
 var migrationsFS embed.FS
 
-func RunMigrations(db *sqlx.DB, config *Config) error {
-	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+func RunMigrations(db *sqlx.DB, config *pkgs.Config) error {
+	sourceDriver, err := iofs.New(migrationsFS, "db")
 	if err != nil {
 		return fmt.Errorf("failed to create source driver: %w", err)
 	}

@@ -6,27 +6,26 @@ import (
 	"time"
 
 	"go-pg-demo/internal/modules/iacc/service"
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	db              *sqlx.DB
-	logger          *zap.Logger
-	validate        *validator.Validate
+	db                *sqlx.DB
+	logger            *zap.Logger
+	validator         *pkgs.RequestValidator
 	permissionService *service.PermissionService
 }
 
-func NewUserHandler(db *sqlx.DB, logger *zap.Logger, validate *validator.Validate, permissionService *service.PermissionService) *Handler {
+func NewUserHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestValidator, permissionService *service.PermissionService) *Handler {
 	return &Handler{
-		db:              db,
-		logger:          logger,
-		validate:        validate,
+		db:                db,
+		logger:            logger,
+		validator:         validator,
 		permissionService: permissionService,
 	}
 }
@@ -43,7 +42,7 @@ func NewUserHandler(db *sqlx.DB, logger *zap.Logger, validate *validator.Validat
 //	@Failure	400		{object}	pkgs.Response				"请求参数错误"
 //	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
 //	@Router		/user [post]
-func (h *Handler) CreateUser(c *gin.Context) {
+func (h *Handler) Create(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -52,8 +51,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -98,7 +96,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 //	@Failure	404		{object}	pkgs.Response						"用户不存在"
 //	@Failure	500		{object}	pkgs.Response						"服务器内部错误"
 //	@Router		/user/{id} [put]
-func (h *Handler) UpdateUser(c *gin.Context) {
+func (h *Handler) Update(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -116,8 +114,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -188,7 +185,7 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 //	@Failure	404	{object}	pkgs.Response						"用户不存在"
 //	@Failure	500	{object}	pkgs.Response						"服务器内部错误"
 //	@Router		/user/{id} [get]
-func (h *Handler) GetUserByID(c *gin.Context) {
+func (h *Handler) Get(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -239,7 +236,7 @@ func (h *Handler) GetUserByID(c *gin.Context) {
 //	@Failure	400	{object}	pkgs.Response							"请求参数错误"
 //	@Failure	500	{object}	pkgs.Response							"服务器内部错误"
 //	@Router		/user/list [get]
-func (h *Handler) ListUsers(c *gin.Context) {
+func (h *Handler) List(c *gin.Context) {
 	// 绑定请求参数
 	var req ListUsersRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -248,8 +245,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -340,7 +336,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 //	@Failure	400		{object}	pkgs.Response				"请求参数错误"
 //	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
 //	@Router		/user/{id}/role [post]
-func (h *Handler) AssignRole(c *gin.Context) {
+func (h *Handler) AssignRoles(c *gin.Context) {
 	// 获取用户ID
 	userID := c.Param("id")
 
@@ -358,8 +354,7 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validate.Struct(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -450,7 +445,7 @@ func (h *Handler) AssignRole(c *gin.Context) {
 //	@Failure	404		{object}	pkgs.Response	"用户或角色不存在"
 //	@Failure	500		{object}	pkgs.Response	"服务器内部错误"
 //	@Router		/user/{id}/role/{role_id} [delete]
-func (h *Handler) RemoveRole(c *gin.Context) {
+func (h *Handler) Delete(c *gin.Context) {
 	// 获取用户ID和角色ID
 	userID := c.Param("id")
 	roleID := c.Param("role_id")

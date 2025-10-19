@@ -7,10 +7,18 @@
 package app
 
 import (
-	"go-pg-demo/internal/api/v1"
+	"go-pg-demo/api/v1"
 	"go-pg-demo/internal/middlewares"
+	"go-pg-demo/internal/modules/iacc/auth"
+	"go-pg-demo/internal/modules/iacc/role"
+	"go-pg-demo/internal/modules/iacc/service"
+	"go-pg-demo/internal/modules/iacc/user"
 	"go-pg-demo/internal/modules/template"
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
+)
+
+import (
+	_ "go-pg-demo/docs"
 )
 
 // Injectors from wire.go:
@@ -29,10 +37,18 @@ func InitializeApp() (*App, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	handler := template.NewTemplateHandler(db, logger)
-	registerRouter := v1.NewRegisterRouter(engine, handler)
-	useMiddlewares := middlewares.NewUseMiddlewares(engine, logger)
-	app, err := NewApp(engine, logger, config, db, registerRouter, useMiddlewares)
+	loggerMiddleware := middlewares.NewLoggerMiddleware(logger)
+	authMiddleware := middlewares.NewAuthMiddleware(config, logger)
+	recoveryMiddleware := middlewares.NewRecoveryMiddleware(logger)
+	requestValidator := pkgs.NewRequestValidator()
+	handler := template.NewTemplateHandler(db, logger, requestValidator)
+	permissionService := service.NewPermissionService(db, logger)
+	userHandler := user.NewUserHandler(db, logger, requestValidator, permissionService)
+	roleHandler := role.NewRoleHandler(db, logger, requestValidator)
+	authHandler := auth.NewAuthHandler(db, logger, requestValidator, config)
+	permissionMiddleware := middlewares.NewPermissionMiddleware(permissionService, logger)
+	router := v1.NewRouter(engine, handler, userHandler, roleHandler, authHandler, permissionMiddleware)
+	app, err := NewApp(engine, logger, config, db, loggerMiddleware, authMiddleware, recoveryMiddleware, router)
 	if err != nil {
 		return nil, nil, err
 	}

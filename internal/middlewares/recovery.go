@@ -6,11 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
 )
 
-// RecoveryMiddleware 恢复中间件，捕获任何panic并记录错误日志，防止服务崩溃
-func RecoveryMiddleware(logger *zap.Logger) gin.HandlerFunc {
+// 恢复中间件，捕获任何panic并记录错误日志，防止服务崩溃
+type RecoveryMiddleware gin.HandlerFunc
+
+func NewRecoveryMiddleware(logger *zap.Logger) RecoveryMiddleware {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -27,7 +29,7 @@ func RecoveryMiddleware(logger *zap.Logger) gin.HandlerFunc {
 				)
 
 				// 返回500错误
-				pkgs.Error(c, 500, "Internal Server Error")
+				pkgs.Error(c, 500, "服务器内部错误")
 			}
 		}()
 		c.Next()

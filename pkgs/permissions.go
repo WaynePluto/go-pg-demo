@@ -14,24 +14,17 @@ var Permissions = struct {
 	UserDelete Permission
 	UserView   Permission
 	UserList   Permission
-	
+
 	// 角色管理权限
 	RoleCreate Permission
 	RoleUpdate Permission
 	RoleDelete Permission
 	RoleView   Permission
 	RoleList   Permission
-	
+
 	// 权限分配权限
-	RoleAssignPermission   Permission
-	RoleRevokePermission   Permission
-	UserAssignRole         Permission
-	UserRemoveRole         Permission
-	
-	// 用户自身权限
-	UserChangePassword Permission
-	UserUpdateProfile  Permission
-	
+	UserAssignRole Permission
+
 	// 权限查看权限
 	UserViewPermissions Permission
 }{
@@ -75,29 +68,9 @@ var Permissions = struct {
 		Key:         "role:list",
 		Description: "查看角色列表",
 	},
-	RoleAssignPermission: Permission{
-		Key:         "role:assign_permission",
-		Description: "为角色分配权限",
-	},
-	RoleRevokePermission: Permission{
-		Key:         "role:revoke_permission",
-		Description: "移除角色权限",
-	},
 	UserAssignRole: Permission{
 		Key:         "user:assign_role",
 		Description: "为用户分配角色",
-	},
-	UserRemoveRole: Permission{
-		Key:         "user:remove_role",
-		Description: "移除用户角色",
-	},
-	UserChangePassword: Permission{
-		Key:         "user:change_password",
-		Description: "修改用户密码",
-	},
-	UserUpdateProfile: Permission{
-		Key:         "user:update_profile",
-		Description: "更新用户资料",
 	},
 	UserViewPermissions: Permission{
 		Key:         "user:view_permissions",
@@ -118,12 +91,7 @@ func GetAllPermissions() []Permission {
 		Permissions.RoleDelete,
 		Permissions.RoleView,
 		Permissions.RoleList,
-		Permissions.RoleAssignPermission,
-		Permissions.RoleRevokePermission,
 		Permissions.UserAssignRole,
-		Permissions.UserRemoveRole,
-		Permissions.UserChangePassword,
-		Permissions.UserUpdateProfile,
 		Permissions.UserViewPermissions,
 	}
 }

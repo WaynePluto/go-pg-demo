@@ -36,10 +36,5 @@ func NewConnection(config *Config) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Run database migrations
-	if err := RunMigrations(db, config); err != nil {
-		return nil, fmt.Errorf("failed to run database migrations: %w", err)
-	}
-
 	return db, nil
 }

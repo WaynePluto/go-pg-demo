@@ -8,16 +8,25 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
 )
 
-// AuthMiddleware JWT验证中间件
-func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
+// JWT验证中间件
+type AuthMiddleware gin.HandlerFunc
+
+func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
 	return func(c *gin.Context) {
+		// 白名单
+		if strings.Contains(c.Request.URL.Path, "/v1/template") ||
+			strings.Contains(c.Request.URL.Path, "/v1/auth") {
+			c.Next()
+			return
+		}
+
 		// 从请求头获取Authorization字段
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			pkgs.Error(c, 401, "Authorization header is required")
+			pkgs.Error(c, 401, "请求头缺少 Authorization 字段")
 			return
 		}
 
@@ -26,7 +35,7 @@ func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString = authHeader[7:] // "Bearer " 长度为7
 		} else {
-			pkgs.Error(c, 401, "Authorization header must start with 'Bearer '")
+			pkgs.Error(c, 401, "Authorization 字段必须以 'Bearer ' 开头")
 			return
 		}
 
@@ -41,13 +50,13 @@ func AuthMiddleware(config *pkgs.Config, logger *zap.Logger) gin.HandlerFunc {
 
 		if err != nil {
 			logger.Error("Failed to parse JWT token", zap.Error(err))
-			pkgs.Error(c, 401, "Invalid token")
+			pkgs.Error(c, 401, "无效的令牌")
 			return
 		}
 
 		// 检查token是否有效
 		if !token.Valid {
-			pkgs.Error(c, 401, "Invalid token")
+			pkgs.Error(c, 401, "无效的令牌")
 			return
 		}
 

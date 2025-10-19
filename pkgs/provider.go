@@ -7,4 +7,5 @@ var ProviderSet = wire.NewSet(
 	NewConfig,
 	NewConnection,
 	NewLogger,
+	NewRequestValidator,
 )

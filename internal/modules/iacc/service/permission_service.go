@@ -41,8 +41,13 @@ func (s *PermissionService) CalculateEffectivePermissionsForUser(userID string) 
 	}
 
 	// 查询这些角色对应的权限集
-	query = `SELECT permissions FROM iacc_role WHERE id = ANY($1) AND permissions IS NOT NULL`
-	rows, err := s.db.Query(query, roleIDs)
+	query, args, err := sqlx.In(`SELECT permissions FROM iacc_role WHERE id IN (?) AND permissions IS NOT NULL`, roleIDs)
+	if err != nil {
+		s.logger.Error("Failed to create IN query for roles", zap.Error(err))
+		return nil, fmt.Errorf("failed to create IN query for roles: %w", err)
+	}
+	query = s.db.Rebind(query)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		s.logger.Error("Failed to query roles permissions", zap.Strings("role_ids", roleIDs), zap.Error(err))
 		return nil, fmt.Errorf("failed to query roles permissions: %w", err)

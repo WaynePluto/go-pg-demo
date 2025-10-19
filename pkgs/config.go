@@ -39,24 +39,35 @@ type LogConfig struct {
 }
 
 type JWTConfig struct {
-	Secret string        `mapstructure:"secret"`
-	Expire time.Duration `mapstructure:"expire"`
+	Secret             string        `mapstructure:"secret"`
+	AccessTokenExpire  time.Duration `mapstructure:"access_token_expire"`
+	RefreshTokenExpire time.Duration `mapstructure:"refresh_token_expire"`
 }
 
 type AppConfig struct {
 	Name string `mapstructure:"name"`
 }
 
-// NewConfig creates a new Config instance by reading configuration file
 func NewConfig() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./configs")
-	viper.AddConfigPath("../configs")
-	viper.AddConfigPath("../../configs")
-	viper.AddConfigPath("../../../configs")
 
-	if err := viper.ReadInConfig(); err != nil {
+	// 尝试在多个可能的路径中查找配置文件
+	var err error
+	found := false
+	for i := 0; i < 5; i++ {
+		path := "./"
+		for j := 0; j < i; j++ {
+			path += "../"
+		}
+		viper.AddConfigPath(path + "configs")
+		if err = viper.ReadInConfig(); err == nil {
+			found = true
+			break
+		}
+	}
+
+	if !found {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 

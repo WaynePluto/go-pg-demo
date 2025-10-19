@@ -21,7 +21,8 @@ log:
 
 jwt:
   secret: my-secret-key
-  expire: 24h
+  access_token_expire: 24h
+  refresh_token_expire: 720h
 
 app:
   name: go-pg-demo

@@ -3,19 +3,23 @@ package app
 import (
 	"fmt"
 
-	v1 "go-pg-demo/internal/api/v1"
-	"go-pg-demo/internal/middlewares"
-	"go-pg-demo/internal/pkgs"
+	v1 "go-pg-demo/api/v1"
 	_ "go-pg-demo/docs" // Swagger docs
+	"go-pg-demo/internal/middlewares"
+	"go-pg-demo/migration"
+	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
-// App 是一个包含了所有应用组件的结构体
+func NewGin() *gin.Engine {
+	return gin.New()
+}
+
 type App struct {
 	Server *gin.Engine
 	Logger *zap.Logger
@@ -23,26 +27,28 @@ type App struct {
 	DB     *sqlx.DB
 }
 
-func NewGin() *gin.Engine {
-	return gin.New()
-}
-
-// NewApp 是 App 的构造函数，用于 wire 注入
 func NewApp(
 	server *gin.Engine,
 	logger *zap.Logger,
 	conf *pkgs.Config,
 	db *sqlx.DB,
-	useRouterV1 v1.RegisterRouter,
-	useMiddlewares middlewares.UseMiddlewares,
+	loggerMiddleware middlewares.LoggerMiddleware,
+	authMiddleware middlewares.AuthMiddleware,
+	recoveryMiddleware middlewares.RecoveryMiddleware,
+	v1Router *v1.Router,
+
 ) (*App, error) {
 
-	err := pkgs.RunMigrations(db, conf)
+	// 数据库迁移
+	err := migration.RunMigrations(db, conf)
 	if err != nil {
 		return nil, err
 	}
-	useMiddlewares()
-	useRouterV1()
+	server.Use(gin.HandlerFunc(loggerMiddleware))
+	server.Use(gin.HandlerFunc(authMiddleware))
+	server.Use(gin.HandlerFunc(recoveryMiddleware))
+
+	v1Router.Register()
 
 	// 添加Swagger路由，仅在非生产环境启用
 	if conf.Server.Mode != "release" {

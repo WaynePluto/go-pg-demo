@@ -14,43 +14,43 @@ package template
 import (
 	"database/sql"
 	"net/http"
-	"reflect"
 	"time"
 
-	"go-pg-demo/internal/pkgs"
+	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	db     *sqlx.DB
-	logger *zap.Logger
+	db        *sqlx.DB
+	logger    *zap.Logger
+	validator *pkgs.RequestValidator
 }
 
-func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger) *Handler {
+func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestValidator) *Handler {
 	return &Handler{
-		db:     db,
-		logger: logger,
+		db:        db,
+		logger:    logger,
+		validator: validator,
 	}
 }
 
-// CreateTemplate 创建模板
+// Create 创建模板
 //
-//	@Summary	创建模板
-//	@Description	创建模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		request	body	CreateTemplateRequest	true	"创建模板请求参数"
-//	@Success	200		{object}	pkgs.Response{data=string}	"创建成功，返回模板ID"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/template [post]
-func (h *Handler) CreateTemplate(c *gin.Context) {
+//	@Summary  创建模板
+//	@Description  创建模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    request body  CreateTemplateRequest true  "创建模板请求参数"
+//	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回模板ID"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /template [post]
+func (h *Handler) Create(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,7 +59,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validateRequest(c, &req); err != nil {
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -83,19 +83,19 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	pkgs.Success(c, entity.ID)
 }
 
-// CreateTemplateBatch 批量创建模板
+// BatchCreate 批量创建模板
 //
-//	@Summary	批量创建模板
-//	@Description	批量创建模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		request	body	CreateTemplatesRequest	true	"批量创建模板请求参数"
-//	@Success	200		{object}	pkgs.Response{data=[]string}	"创建成功，返回模板ID列表"
-//	@Failure	400		{object}	pkgs.Response					"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response					"服务器内部错误"
-//	@Router		/template/batch-create [post]
-func (h *Handler) CreateTemplateBatch(c *gin.Context) {
+//	@Summary  批量创建模板
+//	@Description  批量创建模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    request body  CreateTemplatesRequest  true  "批量创建模板请求参数"
+//	@Success  200   {object}  pkgs.Response{data=[]string}  "创建成功，返回模板ID列表"
+//	@Failure  400   {object}  pkgs.Response         "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response         "服务器内部错误"
+//	@Router   /template/batch-create [post]
+func (h *Handler) BatchCreate(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateTemplatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -104,7 +104,7 @@ func (h *Handler) CreateTemplateBatch(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validateRequest(c, &req); err != nil {
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -159,20 +159,20 @@ func (h *Handler) CreateTemplateBatch(c *gin.Context) {
 	pkgs.Success(c, createdIDs)
 }
 
-// GetTemplateByID 根据ID获取模板
+// GetByID 根据ID获取模板
 //
-//	@Summary	根据ID获取模板
-//	@Description	根据ID获取模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"模板ID"
-//	@Success	200	{object}	pkgs.Response{data=TemplateResponse}	"获取成功，返回模板信息"
-//	@Failure	400	{object}	pkgs.Response						"请求参数错误"
-//	@Failure	404	{object}	pkgs.Response						"模板不存在"
-//	@Failure	500	{object}	pkgs.Response						"服务器内部错误"
-//	@Router		/template/{id} [get]
-func (h *Handler) GetTemplateByID(c *gin.Context) {
+//	@Summary  根据ID获取模板
+//	@Description  根据ID获取模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "模板ID"
+//	@Success  200 {object}  pkgs.Response{data=TemplateResponse}  "获取成功，返回模板信息"
+//	@Failure  400 {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response           "模板不存在"
+//	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /template/{id} [get]
+func (h *Handler) GetByID(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -207,20 +207,20 @@ func (h *Handler) GetTemplateByID(c *gin.Context) {
 	pkgs.Success(c, response)
 }
 
-// UpdateTemplate 根据ID更新模板
+// UpdateByID 根据ID更新模板
 //
-//	@Summary	根据ID更新模板
-//	@Description	根据ID更新模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string					true	"模板ID"
-//	@Param		request	body	UpdateTemplateRequest	true	"更新模板请求参数"
-//	@Success	200		{object}	pkgs.Response				"更新成功"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/template/{id} [put]
-func (h *Handler) UpdateTemplate(c *gin.Context) {
+//	@Summary  根据ID更新模板
+//	@Description  根据ID更新模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string          true  "模板ID"
+//	@Param    request body  UpdateTemplateRequest true  "更新模板请求参数"
+//	@Success  200   {object}  pkgs.Response       "更新成功"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /template/{id} [put]
+func (h *Handler) UpdateByID(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -232,7 +232,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validateRequest(c, &req); err != nil {
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -262,19 +262,19 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	pkgs.Success(c, nil)
 }
 
-// DeleteTemplate 根据ID删除模板
+// DeleteByID 根据ID删除模板
 //
-//	@Summary	根据ID删除模板
-//	@Description	根据ID删除模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"模板ID"
-//	@Success	200	{object}	pkgs.Response{data=int64}	"删除成功，返回影响行数"
-//	@Failure	400	{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500	{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/template/{id} [delete]
-func (h *Handler) DeleteTemplate(c *gin.Context) {
+//	@Summary  根据ID删除模板
+//	@Description  根据ID删除模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "模板ID"
+//	@Success  200 {object}  pkgs.Response{data=int64} "删除成功，返回影响行数"
+//	@Failure  400 {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500 {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /template/{id} [delete]
+func (h *Handler) DeleteByID(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
 
@@ -297,19 +297,19 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 	pkgs.Success(c, affectedRows)
 }
 
-// DeleteTemplateBatch 批量删除模板
+// BatchDelete 批量删除模板
 //
-//	@Summary	批量删除模板
-//	@Description	批量删除模板
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		request	body	DeleteTemplatesRequest	true	"批量删除模板请求参数"
-//	@Success	200		{object}	pkgs.Response				"删除成功"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/template/batch-delete [post]
-func (h *Handler) DeleteTemplateBatch(c *gin.Context) {
+//	@Summary  批量删除模板
+//	@Description  批量删除模板
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    request body  DeleteTemplatesRequest  true  "批量删除模板请求参数"
+//	@Success  200   {object}  pkgs.Response       "删除成功"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /template/batch-delete [post]
+func (h *Handler) BatchDelete(c *gin.Context) {
 	// 绑定请求参数
 	var req DeleteTemplatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -318,7 +318,7 @@ func (h *Handler) DeleteTemplateBatch(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validateRequest(c, &req); err != nil {
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -341,21 +341,21 @@ func (h *Handler) DeleteTemplateBatch(c *gin.Context) {
 	pkgs.Success(c, nil)
 }
 
-// QueryTemplateList 获取模板列表
+// QueryList 获取模板列表
 //
-//	@Summary	获取模板列表
-//	@Description	获取模板列表
-//	@Tags		template
-//	@Accept		json
-//	@Produce	json
-//	@Param		page		query	int		false	"页码"	default(1)
-//	@Param		pageSize	query	int		false	"每页数量"	default(10)
-//	@Param		name		query	string	false	"模板名称"
-//	@Success	200			{object}	pkgs.Response{data=TemplateListResponse}	"获取成功，返回模板列表"
-//	@Failure	400			{object}	pkgs.Response								"请求参数错误"
-//	@Failure	500			{object}	pkgs.Response								"服务器内部错误"
-//	@Router		/template/list [get]
-func (h *Handler) QueryTemplateList(c *gin.Context) {
+//	@Summary  获取模板列表
+//	@Description  获取模板列表
+//	@Tags   template
+//	@Accept   json
+//	@Produce  json
+//	@Param    page    query int   false "页码"  default(1)
+//	@Param    pageSize  query int   false "每页数量"  default(10)
+//	@Param    name    query string  false "模板名称"
+//	@Success  200     {object}  pkgs.Response{data=TemplateListResponse}  "获取成功，返回模板列表"
+//	@Failure  400     {object}  pkgs.Response               "请求参数错误"
+//	@Failure  500     {object}  pkgs.Response               "服务器内部错误"
+//	@Router   /template/list [get]
+func (h *Handler) QueryList(c *gin.Context) {
 	// 绑定请求参数
 	var req QueryTemplateRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -364,7 +364,7 @@ func (h *Handler) QueryTemplateList(c *gin.Context) {
 	}
 
 	// 验证请求参数
-	if err := h.validateRequest(c, &req); err != nil {
+	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
@@ -431,29 +431,4 @@ func (h *Handler) QueryTemplateList(c *gin.Context) {
 	}
 
 	pkgs.Success(c, gin.H{"list": responseEntities, "total": total})
-}
-
-// validateRequest 验证请求参数
-func (h *Handler) validateRequest(c *gin.Context, req interface{}) error {
-	validate := validator.New()
-
-	if err := validate.Struct(req); err != nil {
-		// 获取第一个验证错误
-		if validationErrors, ok := err.(validator.ValidationErrors); ok && len(validationErrors) > 0 {
-			// 尝试获取自定义错误消息
-			field, _ := reflect.TypeOf(req).Elem().FieldByName(validationErrors[0].Field())
-			message := field.Tag.Get("message")
-			if message == "" {
-				// 如果没有自定义消息，使用默认错误
-				pkgs.Error(c, http.StatusBadRequest, validationErrors[0].Error())
-			} else {
-				// 使用自定义错误消息
-				pkgs.Error(c, http.StatusBadRequest, message)
-			}
-		} else {
-			pkgs.Error(c, http.StatusBadRequest, err.Error())
-		}
-		return err
-	}
-	return nil
 }

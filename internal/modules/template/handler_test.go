@@ -9,7 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"go-pg-demo/internal/pkgs"
+	v1 "go-pg-demo/api/v1"
+	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -18,9 +19,10 @@ import (
 )
 
 var (
-	testHandler *Handler
-	testDB      *sqlx.DB
-	testLogger  *zap.Logger
+	testHandler   *Handler
+	testDB        *sqlx.DB
+	testLogger    *zap.Logger
+	testValidator *pkgs.RequestValidator
 )
 
 func TestMain(m *testing.M) {
@@ -44,8 +46,11 @@ func TestMain(m *testing.M) {
 	}
 	defer testDB.Close()
 
+	// Create validator instance
+	testValidator = pkgs.NewRequestValidator()
+
 	// Create handler instance
-	testHandler = NewTemplateHandler(testDB, testLogger)
+	testHandler = NewTemplateHandler(testDB, testLogger, testValidator)
 
 	// Run tests
 	exitCode := m.Run()
@@ -56,11 +61,14 @@ func TestMain(m *testing.M) {
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
-	router := gin.Default()
-	// 使用 routes.go 中的方法注册路由
-	apiGroup := router.Group("/v1")
-	testHandler.RegisterRoutesV1(apiGroup)
-	router.ServeHTTP(rr, req)
+	engine := gin.New()
+	v1Router := v1.Router{
+		Engine:          engine,
+		RouterGroup:     engine.Group("/v1"),
+		TemplateHandler: testHandler,
+	}
+	v1Router.RegisterTemplate()
+	engine.ServeHTTP(rr, req)
 	return rr
 }
 

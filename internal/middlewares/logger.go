@@ -7,8 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoggerMiddleware 日志中间件，记录每个请求的路径、方法、IP和耗时
-func LoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
+// 日志中间件，记录每个请求的路径、方法、IP和耗时
+type LoggerMiddleware gin.HandlerFunc
+
+func NewLoggerMiddleware(logger *zap.Logger) LoggerMiddleware {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -20,7 +22,7 @@ func LoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
 
 		// 计算耗时
 		latency := time.Since(start)
-		
+
 		// 获取状态码
 		statusCode := c.Writer.Status()
 
