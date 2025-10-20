@@ -1,8 +1,7 @@
-package role
+package role_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,10 +9,8 @@ import (
 	"os"
 	"testing"
 
-	v1 "go-pg-demo/api/v1"
-	"go-pg-demo/internal/middlewares"
-	"go-pg-demo/internal/modules/iacc/auth"
-	"go-pg-demo/internal/modules/iacc/service"
+	"go-pg-demo/internal/app"
+	"go-pg-demo/internal/modules/iacc/role"
 	"go-pg-demo/internal/modules/iacc/user"
 	"go-pg-demo/internal/utils"
 	"go-pg-demo/pkgs"
@@ -27,104 +24,45 @@ import (
 )
 
 var (
-	testRoleHandler *Handler
-	testAuthHandler *auth.Handler
-	testDB          *sqlx.DB
-	testLogger      *zap.Logger
-	testValidator   *pkgs.RequestValidator
-	testConfig      *pkgs.Config
-	testRouter      *v1.Router
+	testDB     *sqlx.DB
+	testLogger *zap.Logger
+	testRouter *gin.Engine
+	testUtil   *utils.TestUtil
 )
 
 // TestMain 设置测试环境
 func TestMain(m *testing.M) {
+	// 设置 Gin 为测试模式
 	gin.SetMode(gin.TestMode)
 
-	var err error
-	testLogger, _ = zap.NewDevelopment()
-	defer testLogger.Sync()
-
-	testConfig, err = pkgs.NewConfig()
+	// 创建应用实例
+	testApp, _, err := app.InitializeApp()
 	if err != nil {
-		testLogger.Fatal("无法加载配置", zap.Error(err))
+		testLogger.Fatal("创建应用实例失败", zap.Error(err))
 	}
 
-	testDB, err = pkgs.NewConnection(testConfig)
-	if err != nil {
-		testLogger.Fatal("无法连接到数据库", zap.Error(err))
+	testDB = testApp.DB
+	testLogger = testApp.Logger
+	testRouter = testApp.Server
+
+	testUtil = &utils.TestUtil{
+		DB:     testDB,
+		Engine: testRouter,
 	}
-	defer testDB.Close()
 
-	testValidator = pkgs.NewRequestValidator()
-	permissionService := service.NewPermissionService(testDB, testLogger)
-	permissionMiddleware := middlewares.NewPermissionMiddleware(permissionService, testLogger)
-	authMiddleware := middlewares.NewAuthMiddleware(testConfig, testLogger)
-
-	testRoleHandler = NewRoleHandler(testDB, testLogger, testValidator)
-	testAuthHandler = auth.NewAuthHandler(testDB, testLogger, testValidator, testConfig)
-
-	engine := gin.New()
-	testRouter = &v1.Router{
-		Engine:               engine,
-		AuthHandler:          testAuthHandler,
-		RoleHandler:          testRoleHandler,
-		PermissionMiddleware: permissionMiddleware,
-	}
-	// 注册全局中间件
-	testRouter.Engine.Use(gin.HandlerFunc(authMiddleware))
-	// 注册路由组
-	testRouter.RouterGroup = testRouter.Engine.Group("/v1")
-	// 注册登录路由
-	testRouter.RegisterIACCAuth()
-	// 注册role的测试路由
-	testRouter.RegisterIACCRole()
-
+	// 运行测试
 	exitCode := m.Run()
+
+	// 退出
 	os.Exit(exitCode)
-}
-
-// executeRequest 辅助函数，用于执行HTTP请求并返回响应记录器
-func executeRequest(req *http.Request) *httptest.ResponseRecorder {
-	rr := httptest.NewRecorder()
-	testRouter.Engine.ServeHTTP(rr, req)
-	return rr
-}
-
-// 创建一个用于测试的角色
-func setupTestRole(t *testing.T, permissions []string) Role {
-	t.Helper()
-	var permsStr *string
-	if permissions != nil {
-		permsJSON, err := json.Marshal(permissions)
-		require.NoError(t, err)
-		s := string(permsJSON)
-		permsStr = &s
-	}
-
-	r := Role{
-		Name:        "testrole_" + uuid.NewString()[:8],
-		Description: "A role for testing",
-		Permissions: permsStr,
-	}
-
-	// 插入角色，然后返回角色ID
-	query := `INSERT INTO iacc_role ( name, description, permissions) VALUES ($1, $2, $3) RETURNING id`
-	err := testDB.QueryRowContext(context.Background(), query, r.Name, r.Description, r.Permissions).Scan(&r.ID)
-	require.NoError(t, err, "创建测试角色失败")
-
-	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM iacc_role WHERE id = $1", r.ID)
-		assert.NoError(t, err, "清理测试角色失败")
-	})
-
-	return r
 }
 
 func TestCreateRole(t *testing.T) {
 	t.Run("成功创建角色", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
-		reqBody := CreateRoleRequest{
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleCreate.Key})
+		reqBody := role.CreateRoleRequest{
 			Name:        "new_role_" + uuid.NewString()[:8],
 			Description: "A new role for test",
 		}
@@ -134,7 +72,8 @@ func TestCreateRole(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -152,15 +91,17 @@ func TestCreateRole(t *testing.T) {
 
 	t.Run("失败 - 缺少角色名", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
-		reqBody := CreateRoleRequest{Description: "A role without name"}
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleCreate.Key})
+		reqBody := role.CreateRoleRequest{Description: "A role without name"}
 		body, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/role", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -175,14 +116,16 @@ func TestCreateRole(t *testing.T) {
 func TestGetRole(t *testing.T) {
 	t.Run("成功获取角色", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleView.Key})
-		testRole := setupTestRole(t, []string{"perm:read"})
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleView.Key})
+		testRole := testUtil.SetupTestRole([]string{"perm:read"})
 		url := fmt.Sprintf("/v1/role/%s", testRole.ID)
 		req, _ := http.NewRequest(http.MethodGet, url, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -191,7 +134,7 @@ func TestGetRole(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		var roleResp RoleResponse
+		var roleResp role.RoleResponse
 		dataBytes, _ := json.Marshal(resp.Data)
 		err = json.Unmarshal(dataBytes, &roleResp)
 		require.NoError(t, err)
@@ -203,14 +146,16 @@ func TestGetRole(t *testing.T) {
 
 	t.Run("失败 - 角色不存在", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleView.Key})
 		nonExistentID := uuid.NewString()
 		url := fmt.Sprintf("/v1/role/%s", nonExistentID)
 		req, _ := http.NewRequest(http.MethodGet, url, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -225,11 +170,12 @@ func TestGetRole(t *testing.T) {
 func TestUpdateRole(t *testing.T) {
 	t.Run("成功更新角色", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
-		testRole := setupTestRole(t, nil)
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleUpdate.Key})
+		testRole := testUtil.SetupTestRole(nil)
 		updatedName := "updated_" + testRole.Name
 		updatedDesc := "Updated description"
-		reqBody := UpdateRoleRequest{
+		reqBody := role.UpdateRoleRequest{
 			Name:        &updatedName,
 			Description: &updatedDesc,
 		}
@@ -240,7 +186,8 @@ func TestUpdateRole(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -249,7 +196,7 @@ func TestUpdateRole(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		var roleResp RoleResponse
+		var roleResp role.RoleResponse
 		dataBytes, _ := json.Marshal(resp.Data)
 		err = json.Unmarshal(dataBytes, &roleResp)
 		require.NoError(t, err)
@@ -261,14 +208,16 @@ func TestUpdateRole(t *testing.T) {
 func TestDeleteRole(t *testing.T) {
 	t.Run("成功删除角色", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
-		testRole := setupTestRole(t, nil)
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleDelete.Key})
+		testRole := testUtil.SetupTestRole(nil)
 		url := fmt.Sprintf("/v1/role/%s", testRole.ID)
 		req, _ := http.NewRequest(http.MethodDelete, url, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -286,7 +235,9 @@ func TestDeleteRole(t *testing.T) {
 
 	t.Run("失败 - 角色仍被用户使用", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleDelete.Key})
+
 		// 1. Create a user
 		u := user.User{ID: uuid.NewString(), Username: "user_with_role", Password: "pw"}
 		_, err := testDB.Exec("INSERT INTO iacc_user (id, username, password) VALUES ($1, $2, $3)", u.ID, u.Username, u.Password)
@@ -294,7 +245,7 @@ func TestDeleteRole(t *testing.T) {
 		defer testDB.Exec("DELETE FROM iacc_user WHERE id = $1", u.ID)
 
 		// 2. Create a role
-		r := setupTestRole(t, nil)
+		r := testUtil.SetupTestRole(nil)
 
 		// 3. Assign role to user
 		_, err = testDB.Exec("INSERT INTO iacc_user_role (id, user_id, role_id) VALUES ($1, $2, $3)", uuid.NewString(), u.ID, r.ID)
@@ -307,7 +258,8 @@ func TestDeleteRole(t *testing.T) {
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -322,13 +274,15 @@ func TestDeleteRole(t *testing.T) {
 func TestListRoles(t *testing.T) {
 	t.Run("成功列出角色", func(t *testing.T) {
 		// Arrange
-		token := utils.SetupAccessUserToken(t, testRouter.Engine, testDB, []string{pkgs.Permissions.RoleCreate.Key})
-		_ = setupTestRole(t, nil) // Ensure at least one role exists
+		testUtil.T = t
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.RoleList.Key})
+		testUtil.SetupTestRole(nil)
 		req, _ := http.NewRequest(http.MethodGet, "/v1/role/list", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		// Act
-		w := executeRequest(req)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 
 		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -337,7 +291,7 @@ func TestListRoles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		var listResp ListRolesResponse
+		var listResp role.ListRolesResponse
 		dataBytes, _ := json.Marshal(resp.Data)
 		err = json.Unmarshal(dataBytes, &listResp)
 		require.NoError(t, err)

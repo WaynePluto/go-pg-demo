@@ -21,10 +21,11 @@ func NewGin() *gin.Engine {
 }
 
 type App struct {
-	Server *gin.Engine
-	Logger *zap.Logger
-	Conf   *pkgs.Config
-	DB     *sqlx.DB
+	Server   *gin.Engine
+	Logger   *zap.Logger
+	Conf     *pkgs.Config
+	DB       *sqlx.DB
+	V1Router *v1.Router
 }
 
 func NewApp(
@@ -56,10 +57,11 @@ func NewApp(
 	}
 
 	return &App{
-		Server: server,
-		Logger: logger,
-		Conf:   conf,
-		DB:     db,
+		Server:   server,
+		Logger:   logger,
+		Conf:     conf,
+		DB:       db,
+		V1Router: v1Router,
 	}, nil
 }
 

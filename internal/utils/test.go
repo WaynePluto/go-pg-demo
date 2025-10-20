@@ -35,13 +35,19 @@ type loginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type TestUtil struct {
+	Engine *gin.Engine
+	DB     *sqlx.DB
+	T      *testing.T
+}
+
 // 创建一个用于测试的角色
-func SetupTestRole(t *testing.T, testDB *sqlx.DB, permissions []string) role {
-	t.Helper()
+func (testUtil *TestUtil) SetupTestRole(permissions []string) role {
+	testUtil.T.Helper()
 	var permsStr *string
 	if permissions != nil {
 		permsJSON, err := json.Marshal(permissions)
-		require.NoError(t, err)
+		require.NoError(testUtil.T, err)
 		s := string(permsJSON)
 		permsStr = &s
 	}
@@ -54,20 +60,20 @@ func SetupTestRole(t *testing.T, testDB *sqlx.DB, permissions []string) role {
 
 	// 插入角色，然后返回角色ID
 	query := `INSERT INTO iacc_role ( name, description, permissions) VALUES ($1, $2, $3) RETURNING id`
-	err := testDB.QueryRowContext(context.Background(), query, r.Name, r.Description, r.Permissions).Scan(&r.ID)
-	require.NoError(t, err, "创建测试角色失败")
+	err := testUtil.DB.QueryRowContext(context.Background(), query, r.Name, r.Description, r.Permissions).Scan(&r.ID)
+	require.NoError(testUtil.T, err, "创建测试角色失败")
 
-	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM iacc_role WHERE id = $1", r.ID)
-		assert.NoError(t, err, "清理测试角色失败")
+	testUtil.T.Cleanup(func() {
+		_, err := testUtil.DB.Exec("DELETE FROM iacc_role WHERE id = $1", r.ID)
+		assert.NoError(testUtil.T, err, "清理测试角色失败")
 	})
 
 	return r
 }
 
 // 创建一个用于测试的用户
-func SetupTestUser(t *testing.T, testDB *sqlx.DB) user {
-	t.Helper()
+func (testUtil *TestUtil) SetupTestUser() user {
+	testUtil.T.Helper()
 	password := "strongpassword"
 	u := user{
 		Username: "testuser_" + uuid.NewString()[:8],
@@ -75,27 +81,27 @@ func SetupTestUser(t *testing.T, testDB *sqlx.DB) user {
 	}
 
 	query := `INSERT INTO iacc_user (username, password) VALUES ($1, $2) RETURNING id`
-	err := testDB.QueryRow(query, u.Username, u.Password).Scan(&u.ID)
-	require.NoError(t, err, "创建测试用户失败")
+	err := testUtil.DB.QueryRow(query, u.Username, u.Password).Scan(&u.ID)
+	require.NoError(testUtil.T, err, "创建测试用户失败")
 
-	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM iacc_user WHERE id = $1", u.ID)
-		assert.NoError(t, err, "清理测试用户失败")
+	testUtil.T.Cleanup(func() {
+		_, err := testUtil.DB.Exec("DELETE FROM iacc_user WHERE id = $1", u.ID)
+		assert.NoError(testUtil.T, err, "清理测试用户失败")
 	})
 
 	return u
 }
 
 // 给测试用户赋予角色
-func AssignRoleToUser(t *testing.T, testDB *sqlx.DB, userID, roleID string) {
-	t.Helper()
+func (testUtil *TestUtil) AssignRoleToUser(userID, roleID string) {
+	testUtil.T.Helper()
 	assocID := uuid.NewString()
-	_, err := testDB.Exec("INSERT INTO iacc_user_role (id, user_id, role_id) VALUES ($1, $2, $3)", assocID, userID, roleID)
-	require.NoError(t, err, "给用户赋予角色失败")
+	_, err := testUtil.DB.Exec("INSERT INTO iacc_user_role (id, user_id, role_id) VALUES ($1, $2, $3)", assocID, userID, roleID)
+	require.NoError(testUtil.T, err, "给用户赋予角色失败")
 
-	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM iacc_user_role WHERE id = $1", assocID)
-		assert.NoError(t, err, "清理用户角色关联失败")
+	testUtil.T.Cleanup(func() {
+		_, err := testUtil.DB.Exec("DELETE FROM iacc_user_role WHERE id = $1", assocID)
+		assert.NoError(testUtil.T, err, "清理用户角色关联失败")
 	})
 }
 
@@ -104,29 +110,29 @@ type LoginResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// 获取访问令牌
-func GetAccessToken(t *testing.T, engine *gin.Engine, testUser user) string {
+func (testUtil *TestUtil) GetAccessTokenByUser(testUser user) string {
 	loginReq := loginRequest{Username: testUser.Username, Password: testUser.Password}
 	loginBody, _ := json.Marshal(loginReq)
 	loginReqHttp, err := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(loginBody))
-	require.NoError(t, err)
+	require.NoError(testUtil.T, err)
 	loginReqHttp.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
-	engine.ServeHTTP(rr, loginReqHttp)
+	testUtil.Engine.ServeHTTP(rr, loginReqHttp)
 	var loginResp pkgs.Response
 	err = json.Unmarshal(rr.Body.Bytes(), &loginResp)
-	require.NoError(t, err)
+	require.NoError(testUtil.T, err)
 	var loginData LoginResponse
 	dataBytes, err := json.Marshal(loginResp.Data)
-	require.NoError(t, err)
+	require.NoError(testUtil.T, err)
 	err = json.Unmarshal(dataBytes, &loginData)
-	require.NoError(t, err)
+	require.NoError(testUtil.T, err)
 	return loginData.AccessToken
 }
 
-func SetupAccessUserToken(t *testing.T, engine *gin.Engine, testDB *sqlx.DB, permissions []string) string {
-	roleId := SetupTestRole(t, testDB, []string{pkgs.Permissions.RoleCreate.Key}).ID
-	testUser := SetupTestUser(t, testDB)
-	AssignRoleToUser(t, testDB, testUser.ID, roleId)
-	return GetAccessToken(t, engine, testUser)
+// 获取访问令牌, 传permission为空数组，就是无权限访问令牌
+func (testUtil *TestUtil) GetAccessUserToken(permissions []string) string {
+	roleId := testUtil.SetupTestRole(permissions).ID
+	testUser := testUtil.SetupTestUser()
+	testUtil.AssignRoleToUser(testUser.ID, roleId)
+	return testUtil.GetAccessTokenByUser(testUser)
 }

@@ -44,7 +44,6 @@
 │   └── modules             # 业务模块
 │       └── template        # 业务参考示例模板
 │           ├── handler.go
-│           ├── handler_test.go
 │           └── type.go
 ├── pkgs                
 │   ├── config.go
@@ -75,11 +74,11 @@
 
 5. 在handler中实现业务需求，一个接口主要分为 绑定参数、验证参数、创建数据实体、数据库表操作、返回接口响应等几个步骤，然后给接口函数增加swagger文档注释；如果有跨表操作了，则在业务目录的service文件中定义相关的函数，接收db连接，返回跨表操作的结果。
 
-6. 在handler_test中编写测试代码。
+6. 在internal/app/wire.go文件中注册新业务涉及的所有handler构造函数，然后使用 wire.bind 绑定 api/v1/intf 内定义的接口；之后，终端运行`wire ./internal/app` 更新依赖。
 
-7. 在internal/app/wire.go文件中注册新业务涉及的所有handler构造函数，然后使用 wire.bind 绑定 api/v1/intf 内定义的接口；之后，终端运行`wire ./internal/app` 更新依赖。
+7. 如果新业务中有接口涉及了权限校验：则在`internal/api/v1/router.go`中增加权限校验中间件。然后修改新业务中的测试文件，增加权限相关的用例。
 
-8. 如果新业务中有接口涉及了权限校验：则在`internal/api/v1/router.go`中增加权限校验中间件。然后修改新业务中的测试文件，增加权限相关的用例。
+8. 在 test/v1/ 相应的目录下编写测试代码。
 
 ## 扩展基础组件规范
 当有新的中间件或者业务模块，需要一个新组件的时候，参考 pkgs/logger.go 日志组件的创建步骤：
@@ -103,5 +102,4 @@
 4. 测试正面和负面场景。 正面路径：使用合法的输入，验证正常行为；负面路径：非法输入、边界条件、异常流等等；
 5. 在每个测试开始前准备所需数据，测试结束后使用 `t.Cleanup()` 注册的函数来清理数据，以确保测试的独立性和可重复性；
 6. 有些路由存在权限校验，请你在进行测试前，阅读 `api/v1/router.go` 代码，参考里面相关的路由权限控制；
-7. 测试代码可以参考 `internal/modules/template/handler_test.go`；
-8. 进行路由注册的时候，参考 `internal/modules/template/handler_test.go` 的 `executeRequest` 中的路由注册方式；
+7. 测试代码可以参考 `test/v1/template/template_test.go`；
