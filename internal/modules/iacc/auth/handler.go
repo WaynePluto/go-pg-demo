@@ -7,6 +7,7 @@ import (
 	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -56,17 +57,43 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// 验证用户名和密码
 	var user UserDTO
-	query := `SELECT id, username, phone FROM iacc_user WHERE username = $1 AND password = $2`
+	query := `SELECT id, username FROM iacc_user WHERE username = $1 AND password = $2`
 	err := h.db.GetContext(c.Request.Context(), &user, query, req.Username, req.Password)
 	if err != nil {
-		pkgs.Error(c, http.StatusUnauthorized, "Invalid username or password")
+		h.logger.Info("验证用户名和密码出错", zap.Error(err))
+		pkgs.Error(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
-	// 生成访问令牌和刷新令牌
-	accessToken := "fake_access_token_" + uuid.Must(uuid.NewV7()).String()
-	refreshToken := "fake_refresh_token_" + uuid.Must(uuid.NewV7()).String()
-	expiresAt := time.Now().Add(24 * time.Hour)
+	// 生成访问令牌
+	accessClaims := jwt.MapClaims{
+		"user_id": user.ID,
+		"exp":     time.Now().Add(h.config.JWT.AccessTokenExpire).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	if err != nil {
+		h.logger.Error("Failed to generate access token", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate access token")
+		return
+	}
+
+	// 生成刷新令牌
+	refreshClaims := jwt.MapClaims{
+		"user_id": user.ID,
+		"exp":     time.Now().Add(h.config.JWT.RefreshTokenExpire).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	if err != nil {
+		h.logger.Error("Failed to generate refresh token", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate refresh token")
+		return
+	}
+
+	expiresAt := time.Now().Add(h.config.JWT.AccessTokenExpire)
 
 	// 返回结果
 	response := LoginResponse{
@@ -104,16 +131,52 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// 验证刷新令牌（简化实现）
-	if req.RefreshToken == "" || len(req.RefreshToken) < 10 {
+	// 验证刷新令牌
+	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte(h.config.JWT.Secret), nil
+	})
+
+	if err != nil || !token.Valid {
 		pkgs.Error(c, http.StatusUnauthorized, "Invalid refresh token")
 		return
 	}
 
-	// 生成新的访问令牌和刷新令牌
-	accessToken := "fake_access_token_" + uuid.Must(uuid.NewV7()).String()
-	refreshToken := "fake_refresh_token_" + uuid.Must(uuid.NewV7()).String()
-	expiresAt := time.Now().Add(24 * time.Hour)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		pkgs.Error(c, http.StatusUnauthorized, "Invalid refresh token claims")
+		return
+	}
+	userID := claims["user_id"].(string)
+
+	// 生成新的访问令牌
+	accessClaims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(h.config.JWT.AccessTokenExpire).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	if err != nil {
+		h.logger.Error("Failed to generate access token", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate access token")
+		return
+	}
+
+	// 生成新的刷新令牌
+	refreshClaims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(h.config.JWT.RefreshTokenExpire).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	if err != nil {
+		h.logger.Error("Failed to generate refresh token", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate refresh token")
+		return
+	}
+
+	expiresAt := time.Now().Add(h.config.JWT.AccessTokenExpire)
 
 	// 返回结果
 	response := RefreshTokenResponse{
@@ -136,9 +199,13 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 //	@Failure  500 {object}  pkgs.Response             "服务器内部错误"
 //	@Router   /auth/me [get]
 func (h *Handler) GetProfile(c *gin.Context) {
-	// 从上下文中获取用户ID（简化实现，实际应从JWT中获取）
-	// 这里使用一个假的用户ID
-	userID := "018e4097-4f9d-7b4f-b0a4-7c9d7e0a0a0a"
+	// 从上下文中获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		pkgs.Error(c, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+	h.logger.Info("GetProfile user_id", zap.Any("user_id", userID))
 
 	// 查询用户信息
 	var user UserInfoResponse
@@ -146,7 +213,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 	err := h.db.GetContext(c.Request.Context(), &user, query, userID)
 	if err != nil {
 		h.logger.Error("Failed to get user info", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to get user info")
+		pkgs.Error(c, http.StatusInternalServerError, "获取用户信息失败")
 		return
 	}
 

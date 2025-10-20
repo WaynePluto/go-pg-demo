@@ -32,16 +32,16 @@ func NewUserHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestVali
 
 // CreateUser 创建用户
 //
-//	@Summary	创建用户
-//	@Description	创建用户
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		request	body	CreateUserRequest	true	"创建用户请求参数"
-//	@Success	200		{object}	pkgs.Response{data=string}	"创建成功，返回用户ID"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/user [post]
+//	@Summary  创建用户
+//	@Description  创建用户
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    request body  CreateUserRequest true  "创建用户请求参数"
+//	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回用户ID"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /user [post]
 func (h *Handler) Create(c *gin.Context) {
 	// 绑定请求参数
 	var req CreateUserRequest
@@ -56,22 +56,17 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 创建实体
-	id := uuid.Must(uuid.NewV7()).String()
-	now := time.Now()
 	entity := &User{
-		ID:        id,
-		CreatedAt: now,
-		UpdatedAt: now,
-		Username:  req.Username,
-		Phone:     req.Phone,
-		Password:  req.Password, // 注意：实际项目中需要加密存储
-		Profile:   req.Profile,
+		Username: req.Username,
+		Phone:    req.Phone,
+		Password: req.Password, // 注意：实际项目中需要加密存储
+		Profile:  req.Profile,
 	}
 
 	// 数据库操作
-	query := `INSERT INTO iacc_user (id, created_at, updated_at, username, phone, password, profile) 
-	          VALUES (:id, :created_at, :updated_at, :username, :phone, :password, :profile)`
-	_, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
+	query := `INSERT INTO iacc_user (username, phone, password, profile) 
+            VALUES (:username, :phone, :password, :profile) RETURNING id`
+	err := h.db.QueryRowxContext(c.Request.Context(), query, entity).Scan(&entity.ID)
 	if err != nil {
 		h.logger.Error("Failed to create user", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to create user")
@@ -84,18 +79,18 @@ func (h *Handler) Create(c *gin.Context) {
 
 // UpdateUser 更新用户
 //
-//	@Summary	更新用户
-//	@Description	更新用户
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string				true	"用户ID"
-//	@Param		request	body	UpdateUserRequest	true	"更新用户请求参数"
-//	@Success	200		{object}	pkgs.Response{data=UserResponse}	"更新成功，返回用户信息"
-//	@Failure	400		{object}	pkgs.Response						"请求参数错误"
-//	@Failure	404		{object}	pkgs.Response						"用户不存在"
-//	@Failure	500		{object}	pkgs.Response						"服务器内部错误"
-//	@Router		/user/{id} [put]
+//	@Summary  更新用户
+//	@Description  更新用户
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string        true  "用户ID"
+//	@Param    request body  UpdateUserRequest true  "更新用户请求参数"
+//	@Success  200   {object}  pkgs.Response{data=UserResponse}  "更新成功，返回用户信息"
+//	@Failure  400   {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404   {object}  pkgs.Response           "用户不存在"
+//	@Failure  500   {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /user/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
@@ -130,7 +125,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	// 数据库操作
 	query := `UPDATE iacc_user SET updated_at=:updated_at, username=:username, phone=:phone, profile=:profile 
-	          WHERE id=:id`
+            WHERE id=:id`
 	result, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
 	if err != nil {
 		h.logger.Error("Failed to update user", zap.Error(err))
@@ -174,17 +169,17 @@ func (h *Handler) Update(c *gin.Context) {
 
 // GetUserByID 根据ID获取用户
 //
-//	@Summary	根据ID获取用户
-//	@Description	根据ID获取用户
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"用户ID"
-//	@Success	200	{object}	pkgs.Response{data=UserResponse}	"获取成功，返回用户信息"
-//	@Failure	400	{object}	pkgs.Response						"请求参数错误"
-//	@Failure	404	{object}	pkgs.Response						"用户不存在"
-//	@Failure	500	{object}	pkgs.Response						"服务器内部错误"
-//	@Router		/user/{id} [get]
+//	@Summary  根据ID获取用户
+//	@Description  根据ID获取用户
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "用户ID"
+//	@Success  200 {object}  pkgs.Response{data=UserResponse}  "获取成功，返回用户信息"
+//	@Failure  400 {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response           "用户不存在"
+//	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /user/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
 	// 获取 ID
 	id := c.Param("id")
@@ -223,19 +218,19 @@ func (h *Handler) Get(c *gin.Context) {
 
 // ListUsers 获取用户列表
 //
-//	@Summary	获取用户列表
-//	@Description	获取用户列表
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		page		query	int		false	"页码"	default(1)
-//	@Param		page_size	query	int		false	"每页数量"	default(10)
-//	@Param		username	query	string	false	"用户名"
-//	@Param		phone		query	string	false	"手机号"
-//	@Success	200	{object}	pkgs.Response{data=ListUsersResponse}	"获取成功，返回用户列表"
-//	@Failure	400	{object}	pkgs.Response							"请求参数错误"
-//	@Failure	500	{object}	pkgs.Response							"服务器内部错误"
-//	@Router		/user/list [get]
+//	@Summary  获取用户列表
+//	@Description  获取用户列表
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    page    query int   false "页码"  default(1)
+//	@Param    page_size query int   false "每页数量"  default(10)
+//	@Param    username  query string  false "用户名"
+//	@Param    phone   query string  false "手机号"
+//	@Success  200 {object}  pkgs.Response{data=ListUsersResponse} "获取成功，返回用户列表"
+//	@Failure  400 {object}  pkgs.Response             "请求参数错误"
+//	@Failure  500 {object}  pkgs.Response             "服务器内部错误"
+//	@Router   /user/list [get]
 func (h *Handler) List(c *gin.Context) {
 	// 绑定请求参数
 	var req ListUsersRequest
@@ -325,17 +320,17 @@ func (h *Handler) List(c *gin.Context) {
 
 // AssignRole 分配角色
 //
-//	@Summary	分配角色
-//	@Description	为用户分配角色
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string				true	"用户ID"
-//	@Param		request	body	AssignRoleRequest	true	"分配角色请求参数"
-//	@Success	200		{object}	pkgs.Response{data=string}	"分配成功，返回用户角色关联ID"
-//	@Failure	400		{object}	pkgs.Response				"请求参数错误"
-//	@Failure	500		{object}	pkgs.Response				"服务器内部错误"
-//	@Router		/user/{id}/role [post]
+//	@Summary  分配角色
+//	@Description  为用户分配角色
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string        true  "用户ID"
+//	@Param    request body  AssignRoleRequest true  "分配角色请求参数"
+//	@Success  200   {object}  pkgs.Response{data=string}  "分配成功，返回用户角色关联ID"
+//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Router   /user/{id}/role [post]
 func (h *Handler) AssignRoles(c *gin.Context) {
 	// 获取用户ID
 	userID := c.Param("id")
@@ -419,7 +414,7 @@ func (h *Handler) AssignRoles(c *gin.Context) {
 
 	// 数据库操作
 	query := `INSERT INTO iacc_user_role (id, created_at, updated_at, user_id, role_id) 
-	          VALUES (:id, :created_at, :updated_at, :user_id, :role_id)`
+            VALUES (:id, :created_at, :updated_at, :user_id, :role_id)`
 	_, err = h.db.NamedExecContext(c.Request.Context(), query, userRole)
 	if err != nil {
 		h.logger.Error("Failed to assign role to user", zap.Error(err))
@@ -433,18 +428,18 @@ func (h *Handler) AssignRoles(c *gin.Context) {
 
 // RemoveRole 移除角色
 //
-//	@Summary	移除角色
-//	@Description	为用户移除角色
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		id		path	string	true	"用户ID"
-//	@Param		role_id	path	string	true	"角色ID"
-//	@Success	200		{object}	pkgs.Response	"移除成功"
-//	@Failure	400		{object}	pkgs.Response	"请求参数错误"
-//	@Failure	404		{object}	pkgs.Response	"用户或角色不存在"
-//	@Failure	500		{object}	pkgs.Response	"服务器内部错误"
-//	@Router		/user/{id}/role/{role_id} [delete]
+//	@Summary  移除角色
+//	@Description  为用户移除角色
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id    path  string  true  "用户ID"
+//	@Param    role_id path  string  true  "角色ID"
+//	@Success  200   {object}  pkgs.Response "移除成功"
+//	@Failure  400   {object}  pkgs.Response "请求参数错误"
+//	@Failure  404   {object}  pkgs.Response "用户或角色不存在"
+//	@Failure  500   {object}  pkgs.Response "服务器内部错误"
+//	@Router   /user/{id}/role/{role_id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	// 获取用户ID和角色ID
 	userID := c.Param("id")
@@ -517,16 +512,16 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // GetUserPermissions 获取用户权限
 //
-//	@Summary	获取用户权限
-//	@Description	获取用户所有有效权限
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		id	path	string	true	"用户ID"
-//	@Success	200	{object}	pkgs.Response{data=[]string}	"获取成功，返回权限列表"
-//	@Failure	400	{object}	pkgs.Response					"请求参数错误"
-//	@Failure	500	{object}	pkgs.Response					"服务器内部错误"
-//	@Router		/user/{id}/permissions [get]
+//	@Summary  获取用户权限
+//	@Description  获取用户所有有效权限
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "用户ID"
+//	@Success  200 {object}  pkgs.Response{data=[]string}  "获取成功，返回权限列表"
+//	@Failure  400 {object}  pkgs.Response         "请求参数错误"
+//	@Failure  500 {object}  pkgs.Response         "服务器内部错误"
+//	@Router   /user/{id}/permissions [get]
 func (h *Handler) GetUserPermissions(c *gin.Context) {
 	// 获取用户ID
 	userID := c.Param("id")

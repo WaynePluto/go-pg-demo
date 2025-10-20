@@ -53,21 +53,16 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 创建实体
-	id := uuid.Must(uuid.NewV7()).String()
-	now := time.Now()
 	entity := &Role{
-		ID:          id,
-		CreatedAt:   now,
-		UpdatedAt:   now,
 		Name:        req.Name,
 		Description: req.Description,
 		Permissions: req.Permissions,
 	}
 
 	// 数据库操作
-	query := `INSERT INTO iacc_role (id, created_at, updated_at, name, description, permissions) 
-            VALUES (:id, :created_at, :updated_at, :name, :description, :permissions)`
-	_, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
+	query := `INSERT INTO iacc_role (name, description, permissions) 
+            VALUES ($1, $2, $3) RETURNING id`
+	err := h.db.QueryRowContext(c.Request.Context(), query, entity.Name, entity.Description, entity.Permissions).Scan(&entity.ID)
 	if err != nil {
 		h.logger.Error("Failed to create role", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to create role")

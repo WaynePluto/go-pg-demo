@@ -24,16 +24,7 @@ func Success(c *gin.Context, data interface{}) {
 
 // Error 错误响应
 func Error(c *gin.Context, code int, msg string) {
-	c.JSON(http.StatusOK, Response{
-		Code: code,
-		Msg:  msg,
-		Data: nil,
-	})
-}
-
-// ErrorCode 自定义HTTP状态码的错误响应
-func ErrorCode(c *gin.Context, httpCode int, code int, msg string) {
-	c.JSON(httpCode, Response{
+	c.AbortWithStatusJSON(http.StatusOK, Response{
 		Code: code,
 		Msg:  msg,
 		Data: nil,

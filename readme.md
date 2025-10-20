@@ -34,6 +34,7 @@
 这些步骤在后面会用来指导智能体编码。
 **注意：**
 1. 创建数据库迁移文件请你标记为终端运行migration命令，比如这个iacc功能，就是生成iacc_init文件。
+标记为终端运行：migrate create -ext sql -dir migration/db iacc_init
 2. 需要创建目录和文件的时候，标记为智能体直接创建。
 ```
 
@@ -45,11 +46,7 @@
 
 ```md
 # 系统设定
-读取 promot\system-code.md ，里面的内容作为你的系统设定。
+读取 `promot/system-code.md` ，里面的内容作为你的系统设定。
 # 需求
-请你根据 promot\iacc\2.code-step.md 中的功能开发计划，只需要完成第三阶段第14步。只需要完成这一个步骤，其他步骤不要管。
+请你根据 `promot/iacc/2.code-step.md` 中的功能开发计划，只需要完成第四阶段第16步。只需要完成这一个步骤，其他步骤不要管。
 ```
-
-2. 新开对话，完成第2步骤
-
-3. 以此类推

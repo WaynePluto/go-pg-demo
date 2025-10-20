@@ -32,7 +32,7 @@ func NewPermissionMiddleware(permissionService *service.PermissionService, logge
 			// 计算用户的有效权限
 			effectivePermissions, err := permissionService.CalculateEffectivePermissionsForUser(userIDStr)
 			if err != nil {
-				logger.Error("Failed to calculate effective permissions", zap.String("user_id", userIDStr), zap.Error(err))
+				logger.Error("权限计算出错", zap.String("user_id", userIDStr), zap.Error(err))
 				pkgs.Error(c, http.StatusInternalServerError, "权限校验失败")
 				return
 			}
@@ -41,6 +41,12 @@ func NewPermissionMiddleware(permissionService *service.PermissionService, logge
 			userPermissions := make(map[string]struct{}, len(effectivePermissions))
 			for _, p := range effectivePermissions {
 				userPermissions[p] = struct{}{}
+			}
+
+			// 处理权限为空的情况
+			if len(userPermissions) == 0 {
+				pkgs.Error(c, http.StatusForbidden, "您没有权限访问该资源")
+				return
 			}
 
 			for _, required := range requiredPermissions {

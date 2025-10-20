@@ -1,3 +1,12 @@
+/*
+
+# 创建迁移文件
+migrate create -ext sql -dir migration/db module_name
+# cli 同步，需要的时候再用
+migrate -path migration/db -database "postgres://postgres:0000@localhost:5432/db_demo?sslmode=disable" up
+
+*/
+
 package migration
 
 import (

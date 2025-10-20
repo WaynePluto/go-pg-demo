@@ -18,7 +18,8 @@ func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
 	return func(c *gin.Context) {
 		// 白名单
 		if strings.Contains(c.Request.URL.Path, "/v1/template") ||
-			strings.Contains(c.Request.URL.Path, "/v1/auth") {
+			strings.Contains(c.Request.URL.Path, "/v1/auth/login") ||
+			strings.Contains(c.Request.URL.Path, "/v1/auth/refresh-token") {
 			c.Next()
 			return
 		}
@@ -61,10 +62,11 @@ func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
 		}
 
 		// 将用户信息存储到上下文中
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("user_id", claims["user_id"])
-			c.Set("username", claims["username"])
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			pkgs.Error(c, 500, "token类型出错")
 		}
+		c.Set("user_id", claims["user_id"])
 
 		c.Next()
 	}

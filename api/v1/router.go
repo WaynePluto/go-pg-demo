@@ -28,7 +28,6 @@ func NewRouter(
 	permissionMiddleware middlewares.PermissionMiddleware,
 ) *Router {
 	return &Router{
-		RouterGroup:          engine.Group("/v1"),
 		Engine:               engine,
 		TemplateHandler:      templateHandler,
 		UserHandler:          userHandler,
@@ -39,6 +38,7 @@ func NewRouter(
 }
 
 func (r *Router) Register() {
+	r.RouterGroup = r.Engine.Group("/v1")
 	r.RegisterTemplate()
 	r.RegisterIACCUser()
 	r.RegisterIACCRole()

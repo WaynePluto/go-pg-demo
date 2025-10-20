@@ -46,9 +46,8 @@ type LoginResponse struct {
 
 // UserDTO 用户信息 DTO (用于认证响应)
 type UserDTO struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Phone    string `json:"phone"`
+	ID       string `json:"id" db:"id"`
+	Username string `json:"username" db:"username"`
 }
 
 // RefreshTokenResponse 刷新token响应 DTO
@@ -60,20 +59,20 @@ type RefreshTokenResponse struct {
 
 // UserInfoResponse 当前用户信息响应 DTO
 type UserInfoResponse struct {
-	ID        string    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Username  string    `json:"username"`
-	Phone     string    `json:"phone"`
-	Profile   *string   `json:"profile,omitempty"`
+	ID        string    `json:"id" db:"id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	Username  string    `json:"username" db:"username"`
+	Phone     *string   `json:"phone,omitempty" db:"phone"`
+	Profile   *string   `json:"profile,omitempty" db:"profile"`
 	Roles     []RoleDTO `json:"roles"`
 }
 
 // RoleDTO 角色信息 DTO (用于用户信息响应)
 type RoleDTO struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID          string `json:"id" db:"id"`
+	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 }
 
 // UserPermissionsResponse 用户权限响应 DTO
