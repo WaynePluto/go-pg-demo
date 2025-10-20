@@ -9,7 +9,8 @@ type UserHandler interface {
 	Update(c *gin.Context)
 	Delete(c *gin.Context)
 	List(c *gin.Context)
-	AssignRoles(c *gin.Context)
+	AssignRole(c *gin.Context)
+	RemoveRole(c *gin.Context)
 }
 
 // RoleHandler 角色管理处理器接口

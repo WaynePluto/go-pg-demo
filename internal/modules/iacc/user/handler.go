@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"net/http"
+	"strings"
 	"time"
 
 	"go-pg-demo/internal/modules/iacc/service"
@@ -40,6 +41,7 @@ func NewUserHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestVali
 //	@Param    request body  CreateUserRequest true  "创建用户请求参数"
 //	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回用户ID"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
+//	@Failure  409   {object}  pkgs.Response       "用户名或手机号已存在"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /user [post]
 func (h *Handler) Create(c *gin.Context) {
@@ -56,7 +58,8 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 创建实体
-	entity := &User{
+
+	userData := User{
 		Username: req.Username,
 		Phone:    req.Phone,
 		Password: req.Password, // 注意：实际项目中需要加密存储
@@ -65,16 +68,27 @@ func (h *Handler) Create(c *gin.Context) {
 
 	// 数据库操作
 	query := `INSERT INTO iacc_user (username, phone, password, profile) 
-            VALUES (:username, :phone, :password, :profile) RETURNING id`
-	err := h.db.QueryRowxContext(c.Request.Context(), query, entity).Scan(&entity.ID)
+            VALUES ($1, $2, $3, $4) RETURNING id`
+	err := h.db.QueryRowContext(c.Request.Context(), query, userData.Username, userData.Phone, userData.Password, userData.Profile).Scan(&userData.ID)
 	if err != nil {
 		h.logger.Error("Failed to create user", zap.Error(err))
+		// 检查是否违反唯一约束
+		if strings.Contains(err.Error(), "duplicate key value") {
+			if strings.Contains(err.Error(), "username") {
+				pkgs.Error(c, http.StatusConflict, "用户名已存在")
+				return
+			}
+			if strings.Contains(err.Error(), "phone") {
+				pkgs.Error(c, http.StatusConflict, "手机号已存在")
+				return
+			}
+		}
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to create user")
 		return
 	}
 
 	// 返回结果
-	pkgs.Success(c, entity.ID)
+	pkgs.Success(c, userData.ID)
 }
 
 // UpdateUser 更新用户
@@ -113,20 +127,45 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 更新实体
+	// 构建更新实体
 	now := time.Now()
 	entity := &User{
 		ID:        id,
 		UpdatedAt: now,
-		Username:  *req.Username,
-		Phone:     *req.Phone,
-		Profile:   req.Profile,
 	}
 
+	// 只有在字段提供时才更新
+	fields := []string{"updated_at"}
+	args := []interface{}{now, id}
+
+	if req.Username != nil {
+		entity.Username = *req.Username
+		fields = append(fields, "username")
+		args = append(args, *req.Username)
+	}
+
+	if req.Phone != nil {
+		entity.Phone = *req.Phone
+		fields = append(fields, "phone")
+		args = append(args, *req.Phone)
+	}
+
+	entity.Profile = req.Profile
+	fields = append(fields, "profile")
+	args = append(args, req.Profile)
+
+	// 构建动态SQL更新语句
+	setClause := ""
+	for i, field := range fields {
+		if i > 0 {
+			setClause += ", "
+		}
+		setClause += field + " = $" + string(rune('0'+i+1))
+	}
+	query := "UPDATE iacc_user SET " + setClause + " WHERE id = $" + string(rune('0'+len(fields)+1))
+
 	// 数据库操作
-	query := `UPDATE iacc_user SET updated_at=:updated_at, username=:username, phone=:phone, profile=:profile 
-            WHERE id=:id`
-	result, err := h.db.NamedExecContext(c.Request.Context(), query, entity)
+	result, err := h.db.ExecContext(c.Request.Context(), query, args...)
 	if err != nil {
 		h.logger.Error("Failed to update user", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to update user")
@@ -331,7 +370,7 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /user/{id}/role [post]
-func (h *Handler) AssignRoles(c *gin.Context) {
+func (h *Handler) AssignRole(c *gin.Context) {
 	// 获取用户ID
 	userID := c.Param("id")
 
@@ -440,7 +479,7 @@ func (h *Handler) AssignRoles(c *gin.Context) {
 //	@Failure  404   {object}  pkgs.Response "用户或角色不存在"
 //	@Failure  500   {object}  pkgs.Response "服务器内部错误"
 //	@Router   /user/{id}/role/{role_id} [delete]
-func (h *Handler) Delete(c *gin.Context) {
+func (h *Handler) RemoveRole(c *gin.Context) {
 	// 获取用户ID和角色ID
 	userID := c.Param("id")
 	roleID := c.Param("role_id")
@@ -508,6 +547,54 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	// 返回结果
 	pkgs.Success(c, "Role removed successfully")
+}
+
+// Delete 删除用户
+//
+//	@Summary  删除用户
+//	@Description  删除用户
+//	@Tags   user
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "用户ID"
+//	@Success  200 {object}  pkgs.Response "删除成功"
+//	@Failure  400 {object}  pkgs.Response "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response "用户不存在"
+//	@Failure  500 {object}  pkgs.Response "服务器内部错误"
+//	@Router   /user/{id} [delete]
+func (h *Handler) Delete(c *gin.Context) {
+	// 获取 ID
+	id := c.Param("id")
+
+	// 验证ID是否为有效的UUID
+	if _, err := uuid.Parse(id); err != nil {
+		pkgs.Error(c, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	// 数据库操作
+	query := `DELETE FROM iacc_user WHERE id = $1`
+	result, err := h.db.ExecContext(c.Request.Context(), query, id)
+	if err != nil {
+		h.logger.Error("Failed to delete user", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete user")
+		return
+	}
+
+	// 检查是否有记录被删除
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		h.logger.Error("Failed to get rows affected", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete user")
+		return
+	}
+	if rowsAffected == 0 {
+		pkgs.Error(c, http.StatusNotFound, "User not found")
+		return
+	}
+
+	// 返回结果
+	pkgs.Success(c, "User deleted successfully")
 }
 
 // GetUserPermissions 获取用户权限
