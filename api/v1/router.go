@@ -67,7 +67,7 @@ func (r *Router) RegisterIACCUser() {
 		users.DELETE("/:id", r.PermissionMiddleware(pkgs.Permissions.UserDelete.Key), r.UserHandler.Delete)
 		users.GET("/list", r.PermissionMiddleware(pkgs.Permissions.UserList.Key), r.UserHandler.List)
 		users.POST("/:id/role", r.PermissionMiddleware(pkgs.Permissions.UserAssignRole.Key), r.UserHandler.AssignRole)
-		users.DELETE("/:id/role/:role_id", r.PermissionMiddleware(pkgs.Permissions.UserDelete.Key), r.UserHandler.RemoveRole)
+		users.DELETE("/:id/role/:role_id", r.PermissionMiddleware(pkgs.Permissions.UserAssignRole.Key), r.UserHandler.RemoveRole)
 	}
 }
 

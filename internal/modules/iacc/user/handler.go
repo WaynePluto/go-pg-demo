@@ -2,6 +2,8 @@ package user
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -61,15 +63,29 @@ func (h *Handler) Create(c *gin.Context) {
 
 	userData := User{
 		Username: req.Username,
-		Phone:    req.Phone,
+		Phone:    &req.Phone,
 		Password: req.Password, // 注意：实际项目中需要加密存储
 		Profile:  req.Profile,
 	}
 
-	// 数据库操作
+	// 数据库操作，使用 Named prepared statement 获取 RETURNING
 	query := `INSERT INTO iacc_user (username, phone, password, profile) 
-            VALUES ($1, $2, $3, $4) RETURNING id`
-	err := h.db.QueryRowContext(c.Request.Context(), query, userData.Username, userData.Phone, userData.Password, userData.Profile).Scan(&userData.ID)
+      VALUES (:username, :phone, :password, :profile) RETURNING id`
+	stmt, err := h.db.PrepareNamedContext(c.Request.Context(), query)
+	if err != nil {
+		h.logger.Error("Failed to prepare insert user", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to create user")
+		return
+	}
+	defer stmt.Close()
+
+	params := map[string]interface{}{
+		"username": userData.Username,
+		"phone":    userData.Phone,
+		"password": userData.Password,
+		"profile":  userData.Profile,
+	}
+	err = stmt.GetContext(c.Request.Context(), &userData.ID, params)
 	if err != nil {
 		h.logger.Error("Failed to create user", zap.Error(err))
 		// 检查是否违反唯一约束
@@ -127,45 +143,45 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 构建更新实体
+	// 构建更新 map，仅包含需要更新的列（使用指针判断是否传入）
 	now := time.Now()
-	entity := &User{
-		ID:        id,
-		UpdatedAt: now,
+	data := map[string]interface{}{
+		"updated_at": now,
+		"id":         id,
 	}
-
-	// 只有在字段提供时才更新
-	fields := []string{"updated_at"}
-	args := []interface{}{now, id}
-
 	if req.Username != nil {
-		entity.Username = *req.Username
-		fields = append(fields, "username")
-		args = append(args, *req.Username)
+		data["username"] = *req.Username
 	}
-
 	if req.Phone != nil {
-		entity.Phone = *req.Phone
-		fields = append(fields, "phone")
-		args = append(args, *req.Phone)
+		data["phone"] = *req.Phone
+	}
+	// 只有当前端显式传入 profile 时才更新（支持传空字符串或 null）
+	if req.Profile != nil {
+		data["profile"] = req.Profile
 	}
 
-	entity.Profile = req.Profile
-	fields = append(fields, "profile")
-	args = append(args, req.Profile)
-
-	// 构建动态SQL更新语句
-	setClause := ""
-	for i, field := range fields {
-		if i > 0 {
-			setClause += ", "
+	// 构建动态 SET 列表，列名为白名单（由 data 的 key 控制，这里仅允许上述字段）
+	// 列白名单，避免非预期列被更新
+	allowedCols := map[string]bool{
+		"username":   true,
+		"phone":      true,
+		"profile":    true,
+		"updated_at": true,
+	}
+	cols := []string{}
+	for k := range data {
+		if k == "id" {
+			continue
 		}
-		setClause += field + " = $" + string(rune('0'+i+1))
+		if !allowedCols[k] {
+			continue
+		}
+		cols = append(cols, fmt.Sprintf("%s = :%s", k, k))
 	}
-	query := "UPDATE iacc_user SET " + setClause + " WHERE id = $" + string(rune('0'+len(fields)+1))
+	query := fmt.Sprintf("UPDATE iacc_user SET %s WHERE id = :id", strings.Join(cols, ", "))
 
-	// 数据库操作
-	result, err := h.db.ExecContext(c.Request.Context(), query, args...)
+	// 数据库操作（命名参数）
+	result, err := h.db.NamedExecContext(c.Request.Context(), query, data)
 	if err != nil {
 		h.logger.Error("Failed to update user", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to update user")
@@ -195,12 +211,16 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 
 	// 返回结果
+	respPhone := ""
+	if updatedUser.Phone != nil {
+		respPhone = *updatedUser.Phone
+	}
 	response := UserResponse{
 		ID:        updatedUser.ID,
 		CreatedAt: updatedUser.CreatedAt,
 		UpdatedAt: updatedUser.UpdatedAt,
 		Username:  updatedUser.Username,
-		Phone:     updatedUser.Phone,
+		Phone:     respPhone,
 		Profile:   updatedUser.Profile,
 	}
 	pkgs.Success(c, response)
@@ -234,7 +254,7 @@ func (h *Handler) Get(c *gin.Context) {
 	query := `SELECT id, created_at, updated_at, username, phone, profile FROM iacc_user WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			pkgs.Error(c, http.StatusNotFound, "User not found")
 			return
 		}
@@ -244,12 +264,16 @@ func (h *Handler) Get(c *gin.Context) {
 	}
 
 	// 返回结果
+	respPhone := ""
+	if entity.Phone != nil {
+		respPhone = *entity.Phone
+	}
 	response := UserResponse{
 		ID:        entity.ID,
 		CreatedAt: entity.CreatedAt,
 		UpdatedAt: entity.UpdatedAt,
 		Username:  entity.Username,
-		Phone:     entity.Phone,
+		Phone:     respPhone,
 		Profile:   entity.Profile,
 	}
 	pkgs.Success(c, response)
@@ -292,42 +316,66 @@ func (h *Handler) List(c *gin.Context) {
 	query := `SELECT id, created_at, updated_at, username, phone, profile FROM iacc_user`
 	countQuery := `SELECT COUNT(*) FROM iacc_user`
 
-	// 添加过滤条件
-	var args []interface{}
-	argIndex := 1
+	// 添加过滤条件，使用命名参数并 BindNamed -> Rebind
+	params := map[string]interface{}{}
 	if req.Username != "" {
-		query += " WHERE username LIKE $" + string(rune(argIndex+'0'))
-		countQuery += " WHERE username LIKE $" + string(rune(argIndex+'0'))
-		args = append(args, "%"+req.Username+"%")
-		argIndex++
+		params["username"] = "%" + req.Username + "%"
 	}
 	if req.Phone != "" {
-		if argIndex == 1 {
-			query += " WHERE phone LIKE $" + string(rune(argIndex+'0'))
-			countQuery += " WHERE phone LIKE $" + string(rune(argIndex+'0'))
+		params["phone"] = "%" + req.Phone + "%"
+	}
+	params["limit"] = limit
+	params["offset"] = offset
+
+	if req.Username != "" {
+		query += " WHERE username LIKE :username"
+		countQuery += " WHERE username LIKE :username"
+	}
+	if req.Phone != "" {
+		if req.Username == "" {
+			query += " WHERE phone LIKE :phone"
+			countQuery += " WHERE phone LIKE :phone"
 		} else {
-			query += " AND phone LIKE $" + string(rune(argIndex+'0'))
-			countQuery += " AND phone LIKE $" + string(rune(argIndex+'0'))
+			query += " AND phone LIKE :phone"
+			countQuery += " AND phone LIKE :phone"
 		}
-		args = append(args, "%"+req.Phone+"%")
-		argIndex++
 	}
 
 	// 添加分页
-	query += " ORDER BY created_at DESC LIMIT $" + string(rune(argIndex+'0')) + " OFFSET $" + string(rune(argIndex+1+'0'))
-	args = append(args, limit, offset)
+	query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
 
-	// 执行查询
-	err := h.db.SelectContext(c.Request.Context(), &users, query, args...)
+	// BindNamed -> Rebind -> SelectContext
+	q, args, err := h.db.BindNamed(query, params)
+	if err != nil {
+		h.logger.Error("Failed to bind named query", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to list users")
+		return
+	}
+	q = h.db.Rebind(q)
+	err = h.db.SelectContext(c.Request.Context(), &users, q, args...)
 	if err != nil {
 		h.logger.Error("Failed to list users", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to list users")
 		return
 	}
 
-	// 查询总数
+	// 查询总数（不包含分页参数）
 	var totalCount int64
-	err = h.db.GetContext(c.Request.Context(), &totalCount, countQuery, args[:len(args)-2]...)
+	countParams := map[string]interface{}{}
+	if req.Username != "" {
+		countParams["username"] = "%" + req.Username + "%"
+	}
+	if req.Phone != "" {
+		countParams["phone"] = "%" + req.Phone + "%"
+	}
+	cq, carg, err := h.db.BindNamed(countQuery, countParams)
+	if err != nil {
+		h.logger.Error("Failed to bind named count query", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "Failed to get users count")
+		return
+	}
+	cq = h.db.Rebind(cq)
+	err = h.db.GetContext(c.Request.Context(), &totalCount, cq, carg...)
 	if err != nil {
 		h.logger.Error("Failed to get users count", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "Failed to get users count")
@@ -337,12 +385,16 @@ func (h *Handler) List(c *gin.Context) {
 	// 转换为响应格式
 	userResponses := make([]UserResponse, len(users))
 	for i, user := range users {
+		phone := ""
+		if user.Phone != nil {
+			phone = *user.Phone
+		}
 		userResponses[i] = UserResponse{
 			ID:        user.ID,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			Username:  user.Username,
-			Phone:     user.Phone,
+			Phone:     phone,
 			Profile:   user.Profile,
 		}
 	}

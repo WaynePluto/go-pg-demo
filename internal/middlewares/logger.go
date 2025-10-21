@@ -11,6 +11,12 @@ import (
 type LoggerMiddleware gin.HandlerFunc
 
 func NewLoggerMiddleware(logger *zap.Logger) LoggerMiddleware {
+	if gin.Mode() == gin.TestMode {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path

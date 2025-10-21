@@ -10,7 +10,7 @@ type User struct {
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 	Username  string    `db:"username"`
-	Phone     string    `db:"phone"`
+	Phone     *string   `db:"phone"`
 	Password  string    `db:"password"`
 	Profile   *string   `db:"profile"` // JSONB格式存储用户扩展信息
 }
@@ -71,7 +71,7 @@ type UserResponse struct {
 // ListUsersResponse 用户列表响应 DTO
 type ListUsersResponse struct {
 	Users      []UserResponse `json:"users"`
-	Page       int           `json:"page"`
-	PageSize   int           `json:"page_size"`
-	TotalCount int64         `json:"total_count"`
+	Page       int            `json:"page"`
+	PageSize   int            `json:"page_size"`
+	TotalCount int64          `json:"total_count"`
 }

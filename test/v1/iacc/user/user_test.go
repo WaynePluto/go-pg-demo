@@ -467,7 +467,7 @@ func TestRemoveRole(t *testing.T) {
 	t.Run("成功移除角色", func(t *testing.T) {
 		// Arrange
 		testUtil.T = t
-		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.UserDelete.Key})
+		token := testUtil.GetAccessUserToken([]string{pkgs.Permissions.UserAssignRole.Key})
 		testUser := testUtil.SetupTestUser()
 
 		// 创建测试角色
