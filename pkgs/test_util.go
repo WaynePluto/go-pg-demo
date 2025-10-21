@@ -1,11 +1,10 @@
 // 给测试文件提供的工具函数
-package utils
+package pkgs
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"go-pg-demo/pkgs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -118,7 +117,7 @@ func (testUtil *TestUtil) GetAccessTokenByUser(testUser user) string {
 	loginReqHttp.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	testUtil.Engine.ServeHTTP(rr, loginReqHttp)
-	var loginResp pkgs.Response
+	var loginResp Response
 	err = json.Unmarshal(rr.Body.Bytes(), &loginResp)
 	require.NoError(testUtil.T, err)
 	var loginData LoginResponse

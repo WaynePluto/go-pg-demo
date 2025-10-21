@@ -12,7 +12,6 @@ import (
 
 	"go-pg-demo/internal/app"
 	"go-pg-demo/internal/modules/iacc/user"
-	"go-pg-demo/internal/utils"
 	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +26,7 @@ var (
 	testDB     *sqlx.DB
 	testLogger *zap.Logger
 	testRouter *gin.Engine
-	testUtil   *utils.TestUtil
+	testUtil   *pkgs.TestUtil
 )
 
 // TestMain 设置测试环境
@@ -45,7 +44,7 @@ func TestMain(m *testing.M) {
 	testLogger = testApp.Logger
 	testRouter = testApp.Server
 
-	testUtil = &utils.TestUtil{
+	testUtil = &pkgs.TestUtil{
 		DB:     testDB,
 		Engine: testRouter,
 	}
