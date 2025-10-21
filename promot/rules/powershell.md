@@ -11,3 +11,11 @@ migrate create -ext sql -dir migration/db new_module_name
 # 使用 cli 同步，其中postgre的连接地址通过config文件获取
 migrate -path migration/db -database "postgres://postgres:0000@localhost:5432/db_demo?sslmode=disable" up
 ```
+## 更新依赖
+```sh
+wire ./internal/app
+```
+## 更新swagger
+```sh
+swag init -g cmd/server/main.go -o docs
+```

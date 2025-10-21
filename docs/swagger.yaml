@@ -1,5 +1,87 @@
 basePath: /v1
 definitions:
+  auth.AssignRoleRequest:
+    properties:
+      role_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - role_id
+    - user_id
+    type: object
+  auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  auth.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_at:
+        type: string
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/auth.UserDTO'
+    type: object
+  auth.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  auth.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_at:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  auth.RoleDTO:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  auth.UserDTO:
+    properties:
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  auth.UserInfoResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      phone:
+        type: string
+      profile:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/auth.RoleDTO'
+        type: array
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
   pkgs.Response:
     properties:
       code:
@@ -8,12 +90,71 @@ definitions:
       msg:
         type: string
     type: object
+  role.AssignPermissionRequest:
+    properties:
+      permission_key:
+        type: string
+    required:
+    - permission_key
+    type: object
+  role.CreateRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      permissions:
+        type: string
+    required:
+    - name
+    type: object
+  role.ListRolesResponse:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      roles:
+        items:
+          $ref: '#/definitions/role.RoleResponse'
+        type: array
+      total_count:
+        type: integer
+    type: object
+  role.RoleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      permissions:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  role.UpdateRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 50
+        minLength: 1
+        type: string
+      permissions:
+        type: string
+    type: object
   template.CreateTemplateRequest:
     properties:
       name:
         type: string
       num:
-        maximum: 100
+        maximum: 1000
         minimum: 1
         type: integer
     required:
@@ -66,9 +207,74 @@ definitions:
       name:
         type: string
       num:
-        maximum: 100
+        maximum: 1000
         minimum: 1
         type: integer
+    type: object
+  user.AssignRoleRequest:
+    properties:
+      role_id:
+        type: string
+    required:
+    - role_id
+    type: object
+  user.CreateUserRequest:
+    properties:
+      password:
+        maxLength: 50
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      profile:
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - password
+    - phone
+    - username
+    type: object
+  user.ListUsersResponse:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total_count:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/user.UserResponse'
+        type: array
+    type: object
+  user.UpdateUserRequest:
+    properties:
+      phone:
+        type: string
+      profile:
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
+  user.UserResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      phone:
+        type: string
+      profile:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -84,6 +290,430 @@ info:
   title: Go-PG Demo API
   version: "1.0"
 paths:
+  /auth/assign-role:
+    post:
+      consumes:
+      - application/json
+      description: 为用户分配角色
+      parameters:
+      - description: 分配角色请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.AssignRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功，返回用户角色关联ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 分配角色
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户登录
+      parameters:
+      - description: 用户登录请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功，返回访问令牌等信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "401":
+          description: 用户名或密码错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 用户登录
+      tags:
+      - auth
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.UserInfoResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取当前用户信息
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 刷新访问令牌
+      parameters:
+      - description: 刷新令牌请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功，返回新的访问令牌等信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.RefreshTokenResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "401":
+          description: 无效的刷新令牌
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 刷新token
+      tags:
+      - auth
+  /role:
+    post:
+      consumes:
+      - application/json
+      description: 创建角色
+      parameters:
+      - description: 创建角色请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/role.CreateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功，返回角色ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 创建角色
+      tags:
+      - role
+  /role/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据ID删除角色
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功，返回影响行数
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "409":
+          description: 角色正在被使用，无法删除
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID删除角色
+      tags:
+      - role
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取角色
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回角色信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/role.RoleResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID获取角色
+      tags:
+      - role
+    put:
+      consumes:
+      - application/json
+      description: 更新角色
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新角色请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/role.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功，返回角色信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/role.RoleResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 更新角色
+      tags:
+      - role
+  /role/{id}/permission:
+    post:
+      consumes:
+      - application/json
+      description: 为角色分配权限
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 分配权限请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/role.AssignPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 分配权限
+      tags:
+      - role
+  /role/{id}/permission/{permission_key}:
+    delete:
+      consumes:
+      - application/json
+      description: 为角色移除权限
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 权限键
+        in: path
+        name: permission_key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 角色或权限不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 移除权限
+      tags:
+      - role
+  /role/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取角色列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 角色名
+        in: query
+        name: name
+        type: string
+      - description: 角色描述
+        in: query
+        name: description
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回角色列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/role.ListRolesResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取角色列表
+      tags:
+      - role
   /template:
     post:
       consumes:
@@ -335,6 +965,319 @@ paths:
       summary: 获取模板列表
       tags:
       - template
+  /user:
+    post:
+      consumes:
+      - application/json
+      description: 创建用户
+      parameters:
+      - description: 创建用户请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功，返回用户ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "409":
+          description: 用户名或手机号已存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 创建用户
+      tags:
+      - user
+  /user/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 删除用户
+      tags:
+      - user
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 根据ID获取用户
+      tags:
+      - user
+    put:
+      consumes:
+      - application/json
+      description: 更新用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新用户请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功，返回用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 更新用户
+      tags:
+      - user
+  /user/{id}/permissions:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户所有有效权限
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回权限列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取用户权限
+      tags:
+      - user
+  /user/{id}/role:
+    post:
+      consumes:
+      - application/json
+      description: 为用户分配角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 分配角色请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/user.AssignRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功，返回用户角色关联ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 分配角色
+      tags:
+      - user
+  /user/{id}/role/{role_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 为用户移除角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 角色ID
+        in: path
+        name: role_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 用户或角色不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 移除角色
+      tags:
+      - user
+  /user/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 用户名
+        in: query
+        name: username
+        type: string
+      - description: 手机号
+        in: query
+        name: phone
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回用户列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/user.ListUsersResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取用户列表
+      tags:
+      - user
 securityDefinitions:
   JWT:
     description: JWT token for authentication
