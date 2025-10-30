@@ -2,21 +2,19 @@ package v1
 
 import (
 	"go-pg-demo/api/v1/intf"
-	"go-pg-demo/internal/middlewares"
-	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
 )
 
 // v1路由
 type Router struct {
-	Engine               *gin.Engine
-	RouterGroup          *gin.RouterGroup
-	TemplateHandler      intf.ITemplateHandler
-	UserHandler          intf.UserHandler
-	RoleHandler          intf.RoleHandler
-	AuthHandler          intf.AuthHandler
-	PermissionMiddleware middlewares.PermissionMiddleware
+	Engine            *gin.Engine
+	RouterGroup       *gin.RouterGroup
+	TemplateHandler   intf.ITemplateHandler
+	UserHandler       intf.UserHandler
+	RoleHandler       intf.RoleHandler
+	AuthHandler       intf.AuthHandler
+	PermissionHandler intf.PermissionHandler
 }
 
 func NewRouter(
@@ -25,21 +23,22 @@ func NewRouter(
 	userHandler intf.UserHandler,
 	roleHandler intf.RoleHandler,
 	authHandler intf.AuthHandler,
-	permissionMiddleware middlewares.PermissionMiddleware,
+	permissionHandler intf.PermissionHandler,
 ) *Router {
 	return &Router{
-		Engine:               engine,
-		TemplateHandler:      templateHandler,
-		UserHandler:          userHandler,
-		RoleHandler:          roleHandler,
-		AuthHandler:          authHandler,
-		PermissionMiddleware: permissionMiddleware,
+		Engine:            engine,
+		TemplateHandler:   templateHandler,
+		UserHandler:       userHandler,
+		RoleHandler:       roleHandler,
+		AuthHandler:       authHandler,
+		PermissionHandler: permissionHandler,
 	}
 }
 
 func (r *Router) Register() {
 	r.RouterGroup = r.Engine.Group("/v1")
 	r.RegisterTemplate()
+	r.RegisterIACCPermission()
 	r.RegisterIACCUser()
 	r.RegisterIACCRole()
 	r.RegisterIACCAuth()
@@ -58,27 +57,38 @@ func (r *Router) RegisterTemplate() {
 	}
 }
 
-func (r *Router) RegisterIACCUser() {
-	users := r.RouterGroup.Group("/user")
+func (r *Router) RegisterIACCPermission() {
+	permissions := r.RouterGroup.Group("/permission")
 	{
-		users.POST("", r.PermissionMiddleware(pkgs.Permissions.UserCreate.Key), r.UserHandler.Create)
-		users.GET("/:id", r.PermissionMiddleware(pkgs.Permissions.UserView.Key), r.UserHandler.Get)
-		users.PUT("/:id", r.PermissionMiddleware(pkgs.Permissions.UserUpdate.Key), r.UserHandler.Update)
-		users.DELETE("/:id", r.PermissionMiddleware(pkgs.Permissions.UserDelete.Key), r.UserHandler.Delete)
-		users.GET("/list", r.PermissionMiddleware(pkgs.Permissions.UserList.Key), r.UserHandler.List)
-		users.POST("/:id/role", r.PermissionMiddleware(pkgs.Permissions.UserAssignRole.Key), r.UserHandler.AssignRole)
-		users.DELETE("/:id/role/:role_id", r.PermissionMiddleware(pkgs.Permissions.UserAssignRole.Key), r.UserHandler.RemoveRole)
+		permissions.POST("", r.PermissionHandler.Create)
+		permissions.GET("/:id", r.PermissionHandler.GetByID)
+		permissions.PUT("/:id", r.PermissionHandler.UpdateByID)
+		permissions.DELETE("/:id", r.PermissionHandler.DeleteByID)
+		permissions.GET("/list", r.PermissionHandler.QueryList)
 	}
 }
 
 func (r *Router) RegisterIACCRole() {
 	roles := r.RouterGroup.Group("/role")
 	{
-		roles.POST("", r.PermissionMiddleware(pkgs.Permissions.RoleCreate.Key), r.RoleHandler.Create)
-		roles.GET("/:id", r.PermissionMiddleware(pkgs.Permissions.RoleView.Key), r.RoleHandler.Get)
-		roles.PUT("/:id", r.PermissionMiddleware(pkgs.Permissions.RoleUpdate.Key), r.RoleHandler.Update)
-		roles.DELETE("/:id", r.PermissionMiddleware(pkgs.Permissions.RoleDelete.Key), r.RoleHandler.Delete)
-		roles.GET("/list", r.PermissionMiddleware(pkgs.Permissions.RoleList.Key), r.RoleHandler.List)
+		roles.POST("", r.RoleHandler.Create)
+		roles.GET("/:id", r.RoleHandler.GetByID)
+		roles.PUT("/:id", r.RoleHandler.UpdateByID)
+		roles.DELETE("/:id", r.RoleHandler.DeleteByID)
+		roles.GET("/list", r.RoleHandler.QueryList)
+		roles.POST("/:id/permission", r.RoleHandler.AssignPermission)
+	}
+}
+
+func (r *Router) RegisterIACCUser() {
+	users := r.RouterGroup.Group("/user")
+	{
+		users.POST("", r.UserHandler.Create)
+		users.GET("/:id", r.UserHandler.GetByID)
+		users.PUT("/:id", r.UserHandler.UpdateByID)
+		users.DELETE("/:id", r.UserHandler.DeleteByID)
+		users.GET("/list", r.UserHandler.QueryList)
+		users.POST("/:id/role", r.UserHandler.AssignRole)
 	}
 }
 
@@ -86,7 +96,7 @@ func (r *Router) RegisterIACCAuth() {
 	auth := r.RouterGroup.Group("/auth")
 	{
 		auth.POST("/login", r.AuthHandler.Login)
-		auth.POST("/refresh-token", r.AuthHandler.RefreshToken)
-		auth.GET("/profile", r.AuthHandler.GetProfile)
+		auth.POST("/refresh", r.AuthHandler.RefreshToken)
+		auth.GET("/me", r.AuthHandler.GetMe)
 	}
 }

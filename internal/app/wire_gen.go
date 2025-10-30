@@ -10,8 +10,8 @@ import (
 	"go-pg-demo/api/v1"
 	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/modules/iacc/auth"
+	"go-pg-demo/internal/modules/iacc/permission"
 	"go-pg-demo/internal/modules/iacc/role"
-	"go-pg-demo/internal/modules/iacc/service"
 	"go-pg-demo/internal/modules/iacc/user"
 	"go-pg-demo/internal/modules/template"
 	"go-pg-demo/pkgs"
@@ -42,12 +42,11 @@ func InitializeApp() (*App, func(), error) {
 	recoveryMiddleware := middlewares.NewRecoveryMiddleware(logger)
 	requestValidator := pkgs.NewRequestValidator()
 	handler := template.NewTemplateHandler(db, logger, requestValidator)
-	permissionService := service.NewPermissionService(db, logger)
-	userHandler := user.NewUserHandler(db, logger, requestValidator, permissionService)
+	userHandler := user.NewUserHandler(db, logger, requestValidator)
 	roleHandler := role.NewRoleHandler(db, logger, requestValidator)
 	authHandler := auth.NewAuthHandler(db, logger, requestValidator, config)
-	permissionMiddleware := middlewares.NewPermissionMiddleware(permissionService, logger)
-	router := v1.NewRouter(engine, handler, userHandler, roleHandler, authHandler, permissionMiddleware)
+	permissionHandler := permission.NewPermissionHandler(db, logger, requestValidator)
+	router := v1.NewRouter(engine, handler, userHandler, roleHandler, authHandler, permissionHandler)
 	app, err := NewApp(engine, logger, config, db, loggerMiddleware, authMiddleware, recoveryMiddleware, router)
 	if err != nil {
 		return nil, nil, err

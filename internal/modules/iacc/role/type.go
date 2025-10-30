@@ -1,75 +1,51 @@
 package role
 
-import (
-	"time"
-)
+import "time"
 
-// Role 数据库模型
-type Role struct {
+// RoleEntity 数据库表 role 的表结构
+type RoleEntity struct {
 	ID          string    `db:"id"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 	Name        string    `db:"name"`
 	Description string    `db:"description"`
-	Permissions *string   `db:"permissions"` // JSONB格式存储权限键数组
 }
 
-// --- 输入 DTO ---
-
-// CreateRoleRequest 创建角色的请求 DTO
-type CreateRoleRequest struct {
-	Name        string  `json:"name" validate:"required,min=1,max=50"`
-	Description string  `json:"description,omitempty"`
-	Permissions *string `json:"permissions,omitempty"`
+// CreateRoleReq 创建角色的请求 DTO
+type CreateRoleReq struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description"`
 }
 
-// UpdateRoleRequest 更新角色的请求 DTO
-type UpdateRoleRequest struct {
-	Name        *string `json:"name,omitempty" validate:"omitempty,min=1,max=50"`
-	Description *string `json:"description,omitempty"`
-	Permissions *string `json:"permissions,omitempty"`
+// UpdateRoleReq 更新角色的请求体
+type UpdateRoleReq struct {
+	Name        *string `json:"name,omitempty" validate:"omitempty"`
+	Description *string `json:"description,omitempty" validate:"omitempty"`
 }
 
-// AssignPermissionRequest 分配权限的请求 DTO
-type AssignPermissionRequest struct {
-	PermissionKey string `json:"permission_key" validate:"required"`
+// QueryRoleReq 查询角色的请求体
+type QueryRoleReq struct {
+	Page     int    `form:"page,default=1" validate:"min=1"`
+	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100"`
+	Name     string `form:"name,omitempty" validate:"omitempty"`
 }
 
-// RemovePermissionRequest 移除权限的请求 DTO (URL参数)
-type RemovePermissionRequest struct {
-	RoleID        string `uri:"id" validate:"required"`
-	PermissionKey string `uri:"permission_key" validate:"required"`
+// AssignPermissionsReq 给角色分配权限的请求体
+type AssignPermissionsReq struct {
+	PermissionIDs []string `json:"permission_ids" validate:"required,min=1"`
 }
 
-// GetRoleRequest 获取角色详情的请求 DTO (URL参数)
-type GetRoleRequest struct {
-	ID string `uri:"id" validate:"required"`
+// RoleRes 角色响应
+type RoleRes struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
-// ListRolesRequest 获取角色列表的请求 DTO
-type ListRolesRequest struct {
-	Page        int    `form:"page,default=1" validate:"min=1"`
-	PageSize    int    `form:"page_size,default=10" validate:"min=1,max=100"`
-	Name        string `form:"name,omitempty"`
-	Description string `form:"description,omitempty"`
-}
-
-// --- 输出 DTO ---
-
-// RoleResponse 角色信息响应 DTO
-type RoleResponse struct {
-	ID          string    `json:"id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Permissions *string   `json:"permissions,omitempty"`
-}
-
-// ListRolesResponse 角色列表响应 DTO
-type ListRolesResponse struct {
-	Roles       []RoleResponse `json:"roles"`
-	Page        int           `json:"page"`
-	PageSize    int           `json:"page_size"`
-	TotalCount  int64         `json:"total_count"`
+// RoleListRes 分页列表角色响应
+type RoleListRes struct {
+	List  []RoleRes `json:"list"`
+	Total int64     `json:"total"`
 }

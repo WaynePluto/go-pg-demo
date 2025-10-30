@@ -198,7 +198,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 //	@Failure  401 {object}  pkgs.Response             "未授权"
 //	@Failure  500 {object}  pkgs.Response             "服务器内部错误"
 //	@Router   /auth/me [get]
-func (h *Handler) GetProfile(c *gin.Context) {
+func (h *Handler) GetMe(c *gin.Context) {
 	// 从上下文中获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {

@@ -32,7 +32,8 @@ func TestMain(m *testing.M) {
 	// 创建应用实例
 	testApp, _, err := app.InitializeApp()
 	if err != nil {
-		testLogger.Fatal("创建应用实例失败", zap.Error(err))
+		// 如果应用初始化失败，直接退出
+		os.Exit(1)
 	}
 
 	testDB = testApp.DB
@@ -76,7 +77,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateTemplateRequest{
+		createReqBody := template.CreateTemplateReq{
 			Name: "新的测试模板",
 			Num:  &num,
 		}
@@ -108,7 +109,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateTemplateRequest{
+		createReqBody := template.CreateTemplateReq{
 			Num: &num, // 缺少名称
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
@@ -125,7 +126,7 @@ func TestCreateTemplate(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errResp)
 		assert.NoError(t, err, "解析错误响应体不应出错")
 		assert.Equal(t, http.StatusBadRequest, errResp.Code, "响应码应该是 400")
-		assert.Contains(t, errResp.Msg, "Key: 'CreateTemplateRequest.Name' Error:Field validation for 'Name' failed on the 'required' tag", "错误消息应包含名称必填的验证错误")
+		assert.Contains(t, errResp.Msg, "Key: 'CreateTemplateReq.Name' Error:Field validation for 'Name' failed on the 'required' tag", "错误消息应包含名称必填的验证错误")
 	})
 }
 
@@ -179,7 +180,7 @@ func TestUpdateTemplate(t *testing.T) {
 		// 准备
 		entity := setupTestTemplate(t)
 		updateName := "更新后的名称"
-		updateReqBody := template.UpdateTemplateRequest{
+		updateReqBody := template.UpdateTemplateReq{
 			Name: &updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
@@ -239,8 +240,8 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num1, num2 := 200, 300
-		batchCreateReq := template.CreateTemplatesRequest{
-			Templates: []template.CreateTemplateRequest{
+		batchCreateReq := template.CreateTemplatesReq{
+			Templates: []template.CreateTemplateReq{
 				{Name: "批量模板 1", Num: &num1},
 				{Name: "批量模板 2", Num: &num2},
 			},

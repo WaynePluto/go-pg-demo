@@ -8,5 +8,4 @@ var ProviderSet = wire.NewSet(
 	NewLoggerMiddleware,
 	NewRecoveryMiddleware,
 	NewAuthMiddleware,
-	NewPermissionMiddleware,
 )

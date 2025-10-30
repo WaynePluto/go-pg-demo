@@ -7,15 +7,6 @@ CREATE TABLE IF NOT EXISTS "template" (
     num int
 );
 
--- 创建触发器函数
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 -- 创建触发器
 DO $$
 BEGIN

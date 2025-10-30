@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS "iacc_user" (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    username VARCHAR(50) UNIQUE,
     phone VARCHAR(20) UNIQUE,
     password VARCHAR(255),
     profile JSONB
@@ -15,37 +14,51 @@ CREATE TABLE IF NOT EXISTS "iacc_role" (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     name VARCHAR(50) UNIQUE,
-    description TEXT,
-    permissions JSONB
+    description TEXT
+);
+
+-- 创建 permission 表
+CREATE TABLE IF NOT EXISTS "iacc_permission" (
+    id UUID DEFAULT uuidv7() PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    name VARCHAR(50) UNIQUE,
+    type VARCHAR(50),
+    metadata JSONB
 );
 
 -- 创建 user_role 表
 CREATE TABLE IF NOT EXISTS "iacc_user_role" (
-    id UUID DEFAULT uuidv7() PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    user_id UUID,
-    role_id UUID,
-    UNIQUE(user_id, role_id)
+    user_id UUID NOT NULL,
+    role_id UUID NOT NULL,
+    PRIMARY KEY (user_id, role_id)
 );
+
+-- 创建 role_permission 表
+CREATE TABLE IF NOT EXISTS "iacc_role_permission" (
+    role_id UUID NOT NULL,
+    permission_id UUID NOT NULL,
+    PRIMARY KEY (role_id, permission_id)
+);
+
 
 -- 添加外键约束
 ALTER TABLE "iacc_user_role" 
     ADD CONSTRAINT fk_user_role_user 
-    FOREIGN KEY (user_id) REFERENCES "iacc_user"(id);
+    FOREIGN KEY (user_id) REFERENCES "iacc_user"(id) ON DELETE CASCADE;
 
 ALTER TABLE "iacc_user_role" 
     ADD CONSTRAINT fk_user_role_role 
-    FOREIGN KEY (role_id) REFERENCES "iacc_role"(id);
+    FOREIGN KEY (role_id) REFERENCES "iacc_role"(id) ON DELETE CASCADE;
 
--- 创建触发器函数
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+ALTER TABLE "iacc_role_permission"
+    ADD CONSTRAINT fk_role_permission_role
+    FOREIGN KEY (role_id) REFERENCES "iacc_role"(id) ON DELETE CASCADE;
+
+ALTER TABLE "iacc_role_permission"
+    ADD CONSTRAINT fk_role_permission_permission
+    FOREIGN KEY (permission_id) REFERENCES "iacc_permission"(id) ON DELETE CASCADE;
+
 
 -- 为每个表创建触发器
 -- user 表触发器
@@ -80,17 +93,17 @@ BEGIN
     END IF;
 END $$;
 
--- user_role 表触发器
+-- permission 表触发器
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_trigger
-        WHERE tgname = 'trigger_update_updated_at_iacc_user_role'
-          AND tgrelid = 'iacc_user_role'::regclass
+        WHERE tgname = 'trigger_update_updated_at_iacc_permission'
+          AND tgrelid = 'iacc_permission'::regclass
     ) THEN
-        CREATE TRIGGER trigger_update_updated_at_iacc_user_role
-            BEFORE UPDATE ON "iacc_user_role"
+        CREATE TRIGGER trigger_update_updated_at_iacc_permission
+            BEFORE UPDATE ON "iacc_permission"
             FOR EACH ROW
             EXECUTE FUNCTION update_updated_at_column();
     END IF;

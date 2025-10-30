@@ -7,8 +7,8 @@ import (
 	"go-pg-demo/api/v1/intf"
 	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/internal/modules/iacc/auth"
+	"go-pg-demo/internal/modules/iacc/permission"
 	"go-pg-demo/internal/modules/iacc/role"
-	iacc_service "go-pg-demo/internal/modules/iacc/service"
 	"go-pg-demo/internal/modules/iacc/user"
 	"go-pg-demo/internal/modules/template"
 	"go-pg-demo/pkgs"
@@ -22,7 +22,7 @@ func InitializeApp() (*App, func(), error) {
 		pkgs.ProviderSet,
 		middlewares.ProviderSet,
 		template.NewTemplateHandler,
-		iacc_service.NewPermissionService,
+		permission.NewPermissionHandler,
 		user.NewUserHandler,
 		role.NewRoleHandler,
 		auth.NewAuthHandler,
@@ -30,6 +30,7 @@ func InitializeApp() (*App, func(), error) {
 		NewApp,
 		// 绑定接口实现
 		wire.Bind(new(intf.ITemplateHandler), new(*template.Handler)),
+		wire.Bind(new(intf.PermissionHandler), new(*permission.Handler)),
 		wire.Bind(new(intf.UserHandler), new(*user.Handler)),
 		wire.Bind(new(intf.RoleHandler), new(*role.Handler)),
 		wire.Bind(new(intf.AuthHandler), new(*auth.Handler)),

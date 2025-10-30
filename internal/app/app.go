@@ -37,7 +37,6 @@ func NewApp(
 	authMiddleware middlewares.AuthMiddleware,
 	recoveryMiddleware middlewares.RecoveryMiddleware,
 	v1Router *v1.Router,
-
 ) (*App, error) {
 
 	// 数据库迁移
