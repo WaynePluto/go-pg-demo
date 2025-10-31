@@ -1,4 +1,4 @@
--- 创建 user 表
+-- 创建用户表
 CREATE TABLE IF NOT EXISTS "iacc_user" (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -9,23 +9,23 @@ CREATE TABLE IF NOT EXISTS "iacc_user" (
     profile JSONB
 );
 
--- 创建 role 表
+-- 创建角色表
 CREATE TABLE IF NOT EXISTS "iacc_role" (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    name VARCHAR(50) UNIQUE,
+    name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT
 );
 
--- 创建 permission 表
+-- 创建权限表
 CREATE TABLE IF NOT EXISTS "iacc_permission" (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    name VARCHAR(50) UNIQUE,
-    type VARCHAR(50),
-    metadata JSONB
+    name VARCHAR(50) UNIQUE NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    metadata JSONB NOT NULL
 );
 
 -- 创建 user_role 表
@@ -109,3 +109,8 @@ BEGIN
             EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;
+
+-- 创建初始admin用户，密码为明文0000
+INSERT INTO "iacc_user" (username, password) 
+VALUES ('admin', '0000')
+ON CONFLICT (username) DO NOTHING;

@@ -2,6 +2,7 @@ package template_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"math"
 	"net/http"
@@ -58,13 +59,17 @@ func setupTestTemplate(t *testing.T) template.TemplateEntity {
 	}
 
 	// 直接在数据库中创建实体
-	query := `INSERT INTO template (name, num) VALUES ($1, $2) RETURNING id`
-	err := testDB.QueryRow(query, entity.Name, *entity.Num).Scan(&entity.ID)
+	query := `INSERT INTO template (name, num) VALUES (:name, :num) RETURNING id, created_at, updated_at`
+	stmt, err := testDB.PrepareNamedContext(context.Background(), query)
+	assert.NoError(t, err)
+	defer stmt.Close()
+
+	err = stmt.GetContext(context.Background(), &entity, entity)
 	assert.NoError(t, err)
 
 	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
 	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM template WHERE id = $1", entity.ID)
+		_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": entity.ID})
 		if err != nil {
 			t.Errorf("清理测试模板失败: %v", err)
 		}
@@ -106,7 +111,7 @@ func TestCreateTemplate(t *testing.T) {
 
 		// 清理
 		t.Cleanup(func() {
-			_, err := testDB.Exec("DELETE FROM template WHERE id = $1", createdID)
+			_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": createdID})
 			assert.NoError(t, err, "清理创建的模板不应出错")
 		})
 	})
@@ -217,7 +222,7 @@ func TestGetByIdTemplate(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析错误响应体不应出错")
 		assert.Equal(t, http.StatusNotFound, resp.Code, "响应码应该是 404")
-		assert.Equal(t, "Template not found", resp.Msg, "错误消息应为 'Template not found'")
+		assert.Equal(t, "模板不存在", resp.Msg, "错误消息应为 '模板不存在'")
 	})
 }
 
@@ -252,7 +257,7 @@ func TestUpdateByIdTemplate(t *testing.T) {
 
 		// 验证更新
 		var updatedTemplate template.TemplateEntity
-		err = testDB.Get(&updatedTemplate, "SELECT * FROM template WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &updatedTemplate, "SELECT * FROM template WHERE id = $1", entity.ID)
 		assert.NoError(t, err, "从数据库获取更新后的模板不应出错")
 		assert.Equal(t, updateName, updatedTemplate.Name, "模板名称应已更新")
 		assert.Equal(t, *entity.Num, *updatedTemplate.Num, "模板数量不应改变")
@@ -310,7 +315,7 @@ func TestDeleteByIdTemplate(t *testing.T) {
 
 		// 验证删除
 		var count int
-		err = testDB.Get(&count, "SELECT COUNT(*) FROM template WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM template WHERE id = $1", entity.ID)
 		assert.NoError(t, err, "查询已删除模板的计数不应出错")
 		assert.Equal(t, 0, count, "删除后模板在数据库中应不存在")
 	})
@@ -354,7 +359,7 @@ func TestBatchCreateTemplates(t *testing.T) {
 		// 清理
 		t.Cleanup(func() {
 			for _, id := range ids {
-				_, err := testDB.Exec("DELETE FROM template WHERE id = $1", id.(string))
+				_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": id.(string)})
 				assert.NoError(t, err, "清理批量创建的模板不应出错")
 			}
 		})
@@ -448,8 +453,11 @@ func TestBatchDeleteTemplates(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code)
 
 		// 验证
+		query, args, err := sqlx.In("SELECT COUNT(*) FROM template WHERE id IN (?)", []string{entity1.ID, entity2.ID})
+		assert.NoError(t, err)
+		query = testDB.Rebind(query)
 		var count int
-		err = testDB.Get(&count, "SELECT COUNT(*) FROM template WHERE id IN ($1, $2)", entity1.ID, entity2.ID)
+		err = testDB.GetContext(context.Background(), &count, query, args...)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, count, "模板应已被删除")
 	})

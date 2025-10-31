@@ -46,7 +46,7 @@ func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.Request
 //	@Tags   template
 //	@Accept   json
 //	@Produce  json
-//	@Param    request body  CreateTemplateRequest true  "创建模板请求参数"
+//	@Param    request body  CreateTemplateReq true  "创建模板请求参数"
 //	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回模板ID"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
@@ -74,16 +74,16 @@ func (h *Handler) Create(c *gin.Context) {
 	query := `INSERT INTO template (name, num) VALUES (:name, :num) RETURNING id, created_at, updated_at`
 	stmt, err := h.db.PrepareNamedContext(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to prepare named statement for create", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create template")
+		h.logger.Error("创建模板语句准备失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建模板失败")
 		return
 	}
 	defer stmt.Close()
 
 	err = stmt.GetContext(c.Request.Context(), entity, entity)
 	if err != nil {
-		h.logger.Error("Failed to create template", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create template")
+		h.logger.Error("创建模板失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建模板失败")
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Tags   template
 //	@Accept   json
 //	@Produce  json
-//	@Param    request body  CreateTemplatesRequest  true  "批量创建模板请求参数"
+//	@Param    request body  CreateTemplatesReq  true  "批量创建模板请求参数"
 //	@Success  200   {object}  pkgs.Response{data=[]string}  "创建成功，返回模板ID列表"
 //	@Failure  400   {object}  pkgs.Response         "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response         "服务器内部错误"
@@ -128,8 +128,8 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 	// 开启事务
 	tx, err := h.db.BeginTxx(c.Request.Context(), nil)
 	if err != nil {
-		h.logger.Error("Failed to begin transaction", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create templates")
+		h.logger.Error("开启事务失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "批量创建模板失败")
 		return
 	}
 	defer func() {
@@ -151,8 +151,8 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 	query := `INSERT INTO template (name, num) VALUES (:name, :num) RETURNING id`
 	stmt, err := tx.PrepareNamedContext(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to prepare named statement", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create templates")
+		h.logger.Error("准备命名语句失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "批量创建模板失败")
 		return
 	}
 	defer stmt.Close()
@@ -162,8 +162,8 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 		var id string
 		err = stmt.GetContext(c.Request.Context(), &id, entity)
 		if err != nil {
-			h.logger.Error("Failed to create template in batch", zap.Error(err))
-			pkgs.Error(c, http.StatusInternalServerError, "Failed to create templates")
+			h.logger.Error("批量创建模板失败", zap.Error(err))
+			pkgs.Error(c, http.StatusInternalServerError, "批量创建模板失败")
 			return
 		}
 		createdIDs = append(createdIDs, id)
@@ -181,7 +181,7 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    id  path  string  true  "模板ID"
-//	@Success  200 {object}  pkgs.Response{data=TemplateResponse}  "获取成功，返回模板信息"
+//	@Success  200 {object}  pkgs.Response{data=TemplateRes}  "获取成功，返回模板信息"
 //	@Failure  400 {object}  pkgs.Response           "请求参数错误"
 //	@Failure  404 {object}  pkgs.Response           "模板不存在"
 //	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
@@ -192,7 +192,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 
 	// 验证ID是否为有效的UUID
 	if _, err := uuid.Parse(id); err != nil {
-		pkgs.Error(c, http.StatusNotFound, "Template not found")
+		pkgs.Error(c, http.StatusNotFound, "模板不存在")
 		return
 	}
 
@@ -202,11 +202,11 @@ func (h *Handler) GetByID(c *gin.Context) {
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			pkgs.Error(c, http.StatusNotFound, "Template not found")
+			pkgs.Error(c, http.StatusNotFound, "模板不存在")
 			return
 		}
-		h.logger.Error("Failed to get template", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to get template")
+		h.logger.Error("获取模板失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "获取模板失败")
 		return
 	}
 
@@ -229,7 +229,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    id    path  string          true  "模板ID"
-//	@Param    request body  UpdateTemplateRequest true  "更新模板请求参数"
+//	@Param    request body  UpdateTemplateReq true  "更新模板请求参数"
 //	@Success  200   {object}  pkgs.Response       "更新成功"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
@@ -274,8 +274,8 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 	// 执行数据库操作
 	_, err := h.db.NamedExecContext(c.Request.Context(), query, params)
 	if err != nil {
-		h.logger.Error("Failed to update template", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to update template")
+		h.logger.Error("更新模板失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "更新模板失败")
 		return
 	}
 
@@ -303,14 +303,14 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 	query := `DELETE FROM template WHERE id = :id`
 	res, err := h.db.NamedExecContext(c.Request.Context(), query, map[string]interface{}{"id": id})
 	if err != nil {
-		h.logger.Error("Failed to delete template", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete template")
+		h.logger.Error("删除模板失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除模板失败")
 		return
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
-		h.logger.Error("Failed to get affected rows", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete template")
+		h.logger.Error("获取影响行数失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除模板失败")
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 //	@Tags   template
 //	@Accept   json
 //	@Produce  json
-//	@Param    request body  DeleteTemplatesRequest  true  "批量删除模板请求参数"
+//	@Param    request body  DeleteTemplatesReq  true  "批量删除模板请求参数"
 //	@Success  200   {object}  pkgs.Response       "删除成功"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
@@ -346,15 +346,15 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 	// 数据库操作
 	query, args, err := sqlx.In(`DELETE FROM template WHERE id IN (?)`, req.IDs)
 	if err != nil {
-		h.logger.Error("Failed to build delete query", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to build delete query")
+		h.logger.Error("构建删除查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "构建删除查询失败")
 		return
 	}
 	query = h.db.Rebind(query)
 	_, err = h.db.ExecContext(c.Request.Context(), query, args...)
 	if err != nil {
-		h.logger.Error("Failed to delete templates", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete templates")
+		h.logger.Error("批量删除模板失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "批量删除模板失败")
 		return
 	}
 
@@ -372,7 +372,7 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 //	@Param    page    query int   false "页码"  default(1)
 //	@Param    pageSize  query int   false "每页数量"  default(10)
 //	@Param    name    query string  false "模板名称"
-//	@Success  200     {object}  pkgs.Response{data=TemplateListResponse}  "获取成功，返回模板列表"
+//	@Success  200     {object}  pkgs.Response{data=TemplateListRes}  "获取成功，返回模板列表"
 //	@Failure  400     {object}  pkgs.Response               "请求参数错误"
 //	@Failure  500     {object}  pkgs.Response               "服务器内部错误"
 //	@Router   /template/list [get]
@@ -405,15 +405,15 @@ func (h *Handler) QueryList(c *gin.Context) {
 	countQuery := "SELECT count(*) " + baseQuery
 	nstmt, err := h.db.PrepareNamedContext(c.Request.Context(), countQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named count query", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query templates")
+		h.logger.Error("准备命名计数查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询模板失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.GetContext(c.Request.Context(), &total, params)
 	if err != nil {
-		h.logger.Error("Failed to count templates", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query templates")
+		h.logger.Error("统计模板数量失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询模板失败")
 		return
 	}
 
@@ -429,15 +429,15 @@ func (h *Handler) QueryList(c *gin.Context) {
 
 	nstmt, err = h.db.PrepareNamedContext(c.Request.Context(), listQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named list query", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query templates")
+		h.logger.Error("准备命名列表查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询模板失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.SelectContext(c.Request.Context(), &entities, params)
 	if err != nil {
-		h.logger.Error("Failed to select templates", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query templates")
+		h.logger.Error("查询模板列表失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询模板失败")
 		return
 	}
 

@@ -257,9 +257,335 @@ const docTemplate = `{
                 }
             }
         },
+        "/permission": {
+            "post": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "创建权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permission"
+                ],
+                "summary": "创建权限",
+                "parameters": [
+                    {
+                        "description": "创建权限请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/permission.CreatePermissionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功，返回权限ID",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/permission/list": {
+            "get": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "获取权限列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permission"
+                ],
+                "summary": "获取权限列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "权限名称",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "权限类型",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功，返回权限列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/permission.PermissionListRes"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/permission/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "根据ID获取权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permission"
+                ],
+                "summary": "根据ID获取权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "权限ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功，返回权限信息",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/permission.PermissionRes"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "权限不存在",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "根据ID更新权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permission"
+                ],
+                "summary": "根据ID更新权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "权限ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新权限请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/permission.UpdatePermissionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "根据ID删除权限",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "permission"
+                ],
+                "summary": "根据ID删除权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "权限ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功，返回影响行数",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/role": {
             "post": {
-                "description": "创建角色",
+                "description": "创建一个新角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -272,12 +598,12 @@ const docTemplate = `{
                 "summary": "创建角色",
                 "parameters": [
                     {
-                        "description": "创建角色请求参数",
+                        "description": "创建角色的请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/role.CreateRoleRequest"
+                            "$ref": "#/definitions/role.CreateRoleReq"
                         }
                     }
                 ],
@@ -317,7 +643,7 @@ const docTemplate = `{
         },
         "/role/list": {
             "get": {
-                "description": "获取角色列表",
+                "description": "根据条件分页获取角色列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -327,38 +653,30 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "获取角色列表",
+                "summary": "分页查询角色",
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 1,
                         "description": "页码",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "default": 10,
                         "description": "每页数量",
-                        "name": "page_size",
+                        "name": "pageSize",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "角色名",
+                        "description": "按名称模糊查询",
                         "name": "name",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "角色描述",
-                        "name": "description",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "获取成功，返回角色列表",
+                        "description": "获取成功，返回角色列表和总数",
                         "schema": {
                             "allOf": [
                                 {
@@ -368,7 +686,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/role.ListRolesResponse"
+                                            "$ref": "#/definitions/role.RoleListRes"
                                         }
                                     }
                                 }
@@ -392,7 +710,7 @@ const docTemplate = `{
         },
         "/role/{id}": {
             "get": {
-                "description": "根据ID获取角色",
+                "description": "根据ID获取单个角色的详细信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -402,7 +720,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "根据ID获取角色",
+                "summary": "获取角色详情",
                 "parameters": [
                     {
                         "type": "string",
@@ -424,17 +742,11 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/role.RoleResponse"
+                                            "$ref": "#/definitions/role.RoleRes"
                                         }
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "404": {
@@ -452,7 +764,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "更新角色",
+                "description": "根据ID更新角色的名称或描述",
                 "consumes": [
                     "application/json"
                 ],
@@ -462,7 +774,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "更新角色",
+                "summary": "更新角色信息",
                 "parameters": [
                     {
                         "type": "string",
@@ -472,42 +784,24 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "更新角色请求参数",
+                        "description": "更新角色的请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/role.UpdateRoleRequest"
+                            "$ref": "#/definitions/role.UpdateRoleReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "更新成功，返回角色信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/role.RoleResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
+                        "description": "更新成功",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
-                    "404": {
-                        "description": "角色不存在",
+                    "400": {
+                        "description": "请求参数错误",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -521,7 +815,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "根据ID删除角色",
+                "description": "根据ID删除一个角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -531,7 +825,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "根据ID删除角色",
+                "summary": "删除角色",
                 "parameters": [
                     {
                         "type": "string",
@@ -561,24 +855,6 @@ const docTemplate = `{
                             ]
                         }
                     },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "角色不存在",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "角色正在被使用，无法删除",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
                     "500": {
                         "description": "服务器内部错误",
                         "schema": {
@@ -590,7 +866,7 @@ const docTemplate = `{
         },
         "/role/{id}/permission": {
             "post": {
-                "description": "为角色分配权限",
+                "description": "清空角色现有权限，并重新关联新的权限列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -600,7 +876,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "分配权限",
+                "summary": "为角色分配权限",
                 "parameters": [
                     {
                         "type": "string",
@@ -610,12 +886,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "分配权限请求参数",
+                        "description": "分配权限的请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/role.AssignPermissionRequest"
+                            "$ref": "#/definitions/role.AssignPermissionsReq"
                         }
                     }
                 ],
@@ -623,80 +899,11 @@ const docTemplate = `{
                     "200": {
                         "description": "分配成功",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/role/{id}/permission/{permission_key}": {
-            "delete": {
-                "description": "为角色移除权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "role"
-                ],
-                "summary": "移除权限",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "角色ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "权限键",
-                        "name": "permission_key",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "移除成功",
-                        "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "400": {
                         "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "角色或权限不存在",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -730,7 +937,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.CreateTemplateRequest"
+                            "$ref": "#/definitions/template.CreateTemplateReq"
                         }
                     }
                 ],
@@ -788,7 +995,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.CreateTemplatesRequest"
+                            "$ref": "#/definitions/template.CreateTemplatesReq"
                         }
                     }
                 ],
@@ -849,7 +1056,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.DeleteTemplatesRequest"
+                            "$ref": "#/definitions/template.DeleteTemplatesReq"
                         }
                     }
                 ],
@@ -922,7 +1129,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/template.TemplateListResponse"
+                                            "$ref": "#/definitions/template.TemplateListRes"
                                         }
                                     }
                                 }
@@ -978,7 +1185,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/template.TemplateResponse"
+                                            "$ref": "#/definitions/template.TemplateRes"
                                         }
                                     }
                                 }
@@ -1031,7 +1238,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.UpdateTemplateRequest"
+                            "$ref": "#/definitions/template.UpdateTemplateReq"
                         }
                     }
                 ],
@@ -1114,7 +1321,7 @@ const docTemplate = `{
         },
         "/user": {
             "post": {
-                "description": "创建用户",
+                "description": "通过提供用户名、手机号、密码等信息创建一个新的用户账户。成功后返回新创建用户的唯一标识符(UUID)。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1122,23 +1329,23 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "创建用户",
+                "summary": "创建一个新的用户账户",
                 "parameters": [
                     {
-                        "description": "创建用户请求参数",
+                        "description": "创建用户所需的请求体参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.CreateUserRequest"
+                            "$ref": "#/definitions/user.CreateUserReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "创建成功，返回用户ID",
+                        "description": "成功创建用户，返回用户ID",
                         "schema": {
                             "allOf": [
                                 {
@@ -1156,19 +1363,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "用户名或手机号已存在",
+                        "description": "请求参数验证失败或格式不正确",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法创建用户",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1178,7 +1379,7 @@ const docTemplate = `{
         },
         "/user/list": {
             "get": {
-                "description": "获取用户列表",
+                "description": "获取系统中的用户列表，支持按手机号模糊搜索，并提供分页功能。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1186,40 +1387,37 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "获取用户列表",
+                "summary": "获取用户列表（支持分页和筛选）",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "default": 1,
-                        "description": "页码",
+                        "description": "页码，从1开始计算",
                         "name": "page",
                         "in": "query"
                     },
                     {
+                        "maximum": 100,
+                        "minimum": 1,
                         "type": "integer",
                         "default": 10,
-                        "description": "每页数量",
-                        "name": "page_size",
+                        "description": "每页条目数",
+                        "name": "pageSize",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "用户名",
-                        "name": "username",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "手机号",
+                        "description": "手机号模糊搜索关键字",
                         "name": "phone",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "获取成功，返回用户列表",
+                        "description": "成功获取用户列表",
                         "schema": {
                             "allOf": [
                                 {
@@ -1229,7 +1427,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.ListUsersResponse"
+                                            "$ref": "#/definitions/user.UserListRes"
                                         }
                                     }
                                 }
@@ -1237,13 +1435,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "请求参数验证失败或格式不正确",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法获取用户列表",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1253,7 +1451,7 @@ const docTemplate = `{
         },
         "/user/{id}": {
             "get": {
-                "description": "根据ID获取用户",
+                "description": "通过指定的用户唯一标识符(UUID)来检索特定用户的详细信息。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1261,13 +1459,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "根据ID获取用户",
+                "summary": "根据用户ID获取用户详情",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户ID",
+                        "format": "UUID",
+                        "description": "用户唯一标识符(UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1275,7 +1474,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "获取成功，返回用户信息",
+                        "description": "成功获取用户信息",
                         "schema": {
                             "allOf": [
                                 {
@@ -1285,7 +1484,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.UserResponse"
+                                            "$ref": "#/definitions/user.UserRes"
                                         }
                                     }
                                 }
@@ -1293,19 +1492,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "提供的用户ID格式无效",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "404": {
-                        "description": "用户不存在",
+                        "description": "未找到指定ID的用户",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法获取用户信息",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1313,7 +1512,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "更新用户",
+                "description": "通过指定的用户唯一标识符(UUID)来更新特定用户的密码和个人信息。只会更新请求中包含的字段。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1321,60 +1520,43 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "更新用户",
+                "summary": "根据用户ID更新用户信息",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户ID",
+                        "format": "UUID",
+                        "description": "用户唯一标识符(UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "更新用户请求参数",
+                        "description": "需要更新的用户信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UpdateUserRequest"
+                            "$ref": "#/definitions/user.UpdateUserReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "更新成功，返回用户信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/user.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
+                        "description": "成功更新用户信息",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
-                    "404": {
-                        "description": "用户不存在",
+                    "400": {
+                        "description": "请求参数验证失败或格式不正确",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法更新用户信息",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1382,7 +1564,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "删除用户",
+                "description": "通过指定的用户唯一标识符(UUID)来删除特定用户。这是一个永久性操作，请谨慎使用。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1390,13 +1572,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "删除用户",
+                "summary": "根据用户ID删除用户",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户ID",
+                        "format": "UUID",
+                        "description": "用户唯一标识符(UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1404,57 +1587,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "删除成功",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "用户不存在",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/user/{id}/permissions": {
-            "get": {
-                "description": "获取用户所有有效权限",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user"
-                ],
-                "summary": "获取用户权限",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "用户ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "获取成功，返回权限列表",
+                        "description": "成功删除用户，返回受影响的行数",
                         "schema": {
                             "allOf": [
                                 {
@@ -1464,10 +1597,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
+                                            "type": "integer",
+                                            "format": "int64"
                                         }
                                     }
                                 }
@@ -1475,13 +1606,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
+                        "description": "提供的用户ID格式无效",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法删除用户",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1491,7 +1622,7 @@ const docTemplate = `{
         },
         "/user/{id}/role": {
             "post": {
-                "description": "为用户分配角色",
+                "description": "为指定用户分配一个或多个角色。该操作会完全替换用户当前的所有角色关系。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1499,111 +1630,43 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "用户管理"
                 ],
-                "summary": "分配角色",
+                "summary": "为用户分配角色",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "用户ID",
+                        "format": "UUID",
+                        "description": "用户唯一标识符(UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "分配角色请求参数",
+                        "description": "要分配给用户的角色ID列表",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.AssignRoleRequest"
+                            "$ref": "#/definitions/user.AssignRolesToUserReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "分配成功，返回用户角色关联ID",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/user/{id}/role/{role_id}": {
-            "delete": {
-                "description": "为用户移除角色",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user"
-                ],
-                "summary": "移除角色",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "用户ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "角色ID",
-                        "name": "role_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "移除成功",
+                        "description": "成功为用户分配角色",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "用户或角色不存在",
+                        "description": "请求参数验证失败或格式不正确",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
-                        "description": "服务器内部错误",
+                        "description": "服务器内部错误，无法为用户分配角色",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1739,6 +1802,89 @@ const docTemplate = `{
                 }
             }
         },
+        "permission.CreatePermissionReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "metadata": {
+                    "$ref": "#/definitions/permission.Metadata"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "permission.Metadata": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "permission.PermissionListRes": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/permission.PermissionRes"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "permission.PermissionRes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/permission.Metadata"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "permission.UpdatePermissionReq": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "$ref": "#/definitions/permission.Metadata"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "pkgs.Response": {
             "type": "object",
             "properties": {
@@ -1751,18 +1897,22 @@ const docTemplate = `{
                 }
             }
         },
-        "role.AssignPermissionRequest": {
+        "role.AssignPermissionsReq": {
             "type": "object",
             "required": [
-                "permission_key"
+                "permission_ids"
             ],
             "properties": {
-                "permission_key": {
-                    "type": "string"
+                "permission_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "role.CreateRoleRequest": {
+        "role.CreateRoleReq": {
             "type": "object",
             "required": [
                 "name"
@@ -1772,36 +1922,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 1
-                },
-                "permissions": {
                     "type": "string"
                 }
             }
         },
-        "role.ListRolesResponse": {
+        "role.RoleListRes": {
             "type": "object",
             "properties": {
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "roles": {
+                "list": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/role.RoleResponse"
+                        "$ref": "#/definitions/role.RoleRes"
                     }
                 },
-                "total_count": {
+                "total": {
                     "type": "integer"
                 }
             }
         },
-        "role.RoleResponse": {
+        "role.RoleRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1816,31 +1955,23 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "permissions": {
-                    "type": "string"
-                },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "role.UpdateRoleRequest": {
+        "role.UpdateRoleReq": {
             "type": "object",
             "properties": {
                 "description": {
                     "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 1
-                },
-                "permissions": {
                     "type": "string"
                 }
             }
         },
-        "template.CreateTemplateRequest": {
+        "template.CreateTemplateReq": {
             "type": "object",
             "required": [
                 "name"
@@ -1856,7 +1987,7 @@ const docTemplate = `{
                 }
             }
         },
-        "template.CreateTemplatesRequest": {
+        "template.CreateTemplatesReq": {
             "type": "object",
             "required": [
                 "templates"
@@ -1866,12 +1997,12 @@ const docTemplate = `{
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/template.CreateTemplateRequest"
+                        "$ref": "#/definitions/template.CreateTemplateReq"
                     }
                 }
             }
         },
-        "template.DeleteTemplatesRequest": {
+        "template.DeleteTemplatesReq": {
             "type": "object",
             "required": [
                 "ids"
@@ -1886,13 +2017,13 @@ const docTemplate = `{
                 }
             }
         },
-        "template.TemplateListResponse": {
+        "template.TemplateListRes": {
             "type": "object",
             "properties": {
                 "list": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/template.TemplateResponse"
+                        "$ref": "#/definitions/template.TemplateRes"
                     }
                 },
                 "total": {
@@ -1900,7 +2031,7 @@ const docTemplate = `{
                 }
             }
         },
-        "template.TemplateResponse": {
+        "template.TemplateRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1920,7 +2051,7 @@ const docTemplate = `{
                 }
             }
         },
-        "template.UpdateTemplateRequest": {
+        "template.UpdateTemplateReq": {
             "type": "object",
             "properties": {
                 "name": {
@@ -1933,18 +2064,23 @@ const docTemplate = `{
                 }
             }
         },
-        "user.AssignRoleRequest": {
+        "user.AssignRolesToUserReq": {
             "type": "object",
             "required": [
-                "role_id"
+                "role_ids"
             ],
             "properties": {
-                "role_id": {
-                    "type": "string"
+                "role_ids": {
+                    "description": "角色ID列表",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
-        "user.CreateUserRequest": {
+        "user.CreateUserReq": {
             "type": "object",
             "required": [
                 "password",
@@ -1953,60 +2089,57 @@ const docTemplate = `{
             ],
             "properties": {
                 "password": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 6
+                    "type": "string"
                 },
                 "phone": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 11,
+                    "minLength": 11
                 },
                 "profile": {
-                    "type": "string"
+                    "$ref": "#/definitions/user.Profile"
                 },
                 "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3
+                    "type": "string"
                 }
             }
         },
-        "user.ListUsersResponse": {
+        "user.Profile": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "user.UpdateUserReq": {
             "type": "object",
             "properties": {
-                "page": {
-                    "type": "integer"
+                "password": {
+                    "description": "密码，前端进行MD5加密",
+                    "type": "string"
                 },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total_count": {
-                    "type": "integer"
-                },
-                "users": {
+                "profile": {
+                    "description": "个人信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/user.Profile"
+                        }
+                    ]
+                }
+            }
+        },
+        "user.UserListRes": {
+            "type": "object",
+            "properties": {
+                "list": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/user.UserResponse"
+                        "$ref": "#/definitions/user.UserRes"
                     }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
-        "user.UpdateUserRequest": {
-            "type": "object",
-            "properties": {
-                "phone": {
-                    "type": "string"
-                },
-                "profile": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3
-                }
-            }
-        },
-        "user.UserResponse": {
+        "user.UserRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2019,12 +2152,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "profile": {
-                    "type": "string"
+                    "$ref": "#/definitions/user.Profile"
                 },
                 "updated_at": {
-                    "type": "string"
-                },
-                "username": {
                     "type": "string"
                 }
             }

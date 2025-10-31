@@ -6,9 +6,9 @@ import (
 
 // 数据库表Template的表结构
 type TemplateEntity struct {
-	ID        string    `db:"id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        string    `db:"id" label:"模板ID"`
+	CreatedAt time.Time `db:"created_at" label:"创建时间"`
+	UpdatedAt time.Time `db:"updated_at" label:"更新时间"`
 	Name      string    `db:"name" label:"模板名称"`
 	Num       *int      `db:"num" label:"模板数量"`
 }
@@ -44,11 +44,11 @@ type QueryTemplateReq struct {
 
 // 模板响应
 type TemplateRes struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Num       *int   `json:"num,omitempty"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        string `json:"id" label:"模板ID"`
+	Name      string `json:"name" label:"模板名称"`
+	Num       *int   `json:"num,omitempty" label:"模板数量"`
+	CreatedAt string `json:"created_at" label:"创建时间"`
+	UpdatedAt string `json:"updated_at" label:"更新时间"`
 }
 
 // 分页列表模板响应

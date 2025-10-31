@@ -2,50 +2,50 @@ package role
 
 import "time"
 
-// RoleEntity 数据库表 role 的表结构
+// 数据库表 role 的表结构
 type RoleEntity struct {
-	ID          string    `db:"id"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
-	Name        string    `db:"name"`
-	Description string    `db:"description"`
+	ID          string    `db:"id" label:"角色ID"`
+	CreatedAt   time.Time `db:"created_at" label:"创建时间"`
+	UpdatedAt   time.Time `db:"updated_at" label:"更新时间"`
+	Name        string    `db:"name" label:"角色名称"`
+	Description *string   `db:"description" label:"角色描述"`
 }
 
-// CreateRoleReq 创建角色的请求 DTO
+// 创建角色的请求 DTO
 type CreateRoleReq struct {
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"description"`
+	Name        string  `json:"name" validate:"required" label:"角色名称"`
+	Description *string `json:"description" label:"角色描述"`
 }
 
-// UpdateRoleReq 更新角色的请求体
+// 更新角色的请求体
 type UpdateRoleReq struct {
-	Name        *string `json:"name,omitempty" validate:"omitempty"`
-	Description *string `json:"description,omitempty" validate:"omitempty"`
+	Name        *string `json:"name,omitempty" validate:"omitempty" label:"角色名称"`
+	Description *string `json:"description,omitempty" validate:"omitempty" label:"角色描述"`
 }
 
-// QueryRoleReq 查询角色的请求体
+// 查询角色的请求体
 type QueryRoleReq struct {
-	Page     int    `form:"page,default=1" validate:"min=1"`
-	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100"`
-	Name     string `form:"name,omitempty" validate:"omitempty"`
+	Page     int    `form:"page,default=1" validate:"min=1" label:"页码"`
+	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100" label:"每页大小"`
+	Name     string `form:"name,omitempty" validate:"omitempty" label:"角色名称"`
 }
 
-// AssignPermissionsReq 给角色分配权限的请求体
+// 给角色分配权限的请求体
 type AssignPermissionsReq struct {
-	PermissionIDs []string `json:"permission_ids" validate:"required,min=1"`
+	PermissionIDs []string `json:"permission_ids" validate:"required,min=1" label:"权限ID列表"`
 }
 
-// RoleRes 角色响应
+// 角色响应
 type RoleRes struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          string  `json:"id" label:"角色ID"`
+	Name        string  `json:"name" label:"角色名称"`
+	Description *string `json:"description,omitempty" label:"角色描述"`
+	CreatedAt   string  `json:"created_at" label:"创建时间"`
+	UpdatedAt   string  `json:"updated_at" label:"更新时间"`
 }
 
-// RoleListRes 分页列表角色响应
+// 分页列表角色响应
 type RoleListRes struct {
-	List  []RoleRes `json:"list"`
-	Total int64     `json:"total"`
+	List  []RoleRes `json:"list" label:"角色列表"`
+	Total int64     `json:"total" label:"总数"`
 }

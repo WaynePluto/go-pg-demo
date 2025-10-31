@@ -74,8 +74,8 @@ func (h *Handler) Login(c *gin.Context) {
 	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
 	if err != nil {
-		h.logger.Error("Failed to generate access token", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate access token")
+		h.logger.Error("生成访问令牌失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "生成访问令牌失败")
 		return
 	}
 
@@ -88,8 +88,8 @@ func (h *Handler) Login(c *gin.Context) {
 	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
 	if err != nil {
-		h.logger.Error("Failed to generate refresh token", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate refresh token")
+		h.logger.Error("生成刷新令牌失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "生成刷新令牌失败")
 		return
 	}
 
@@ -137,13 +137,13 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	})
 
 	if err != nil || !token.Valid {
-		pkgs.Error(c, http.StatusUnauthorized, "Invalid refresh token")
+		pkgs.Error(c, http.StatusUnauthorized, "无效的刷新令牌")
 		return
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		pkgs.Error(c, http.StatusUnauthorized, "Invalid refresh token claims")
+		pkgs.Error(c, http.StatusUnauthorized, "无效的刷新令牌声明")
 		return
 	}
 	userID := claims["user_id"].(string)
@@ -157,8 +157,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
 	if err != nil {
-		h.logger.Error("Failed to generate access token", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate access token")
+		h.logger.Error("生成访问令牌失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "生成访问令牌失败")
 		return
 	}
 
@@ -171,8 +171,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
 	if err != nil {
-		h.logger.Error("Failed to generate refresh token", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to generate refresh token")
+		h.logger.Error("生成刷新令牌失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "生成刷新令牌失败")
 		return
 	}
 
@@ -202,7 +202,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	// 从上下文中获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
-		pkgs.Error(c, http.StatusUnauthorized, "User ID not found in context")
+		pkgs.Error(c, http.StatusUnauthorized, "上下文中未找到用户ID")
 		return
 	}
 	h.logger.Info("GetProfile user_id", zap.Any("user_id", userID))
@@ -212,7 +212,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	query := `SELECT id, created_at, updated_at, username, phone, profile FROM iacc_user WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &user, query, userID)
 	if err != nil {
-		h.logger.Error("Failed to get user info", zap.Error(err))
+		h.logger.Error("获取用户信息失败", zap.Error(err))
 		pkgs.Error(c, http.StatusInternalServerError, "获取用户信息失败")
 		return
 	}
@@ -225,8 +225,8 @@ func (h *Handler) GetMe(c *gin.Context) {
            WHERE ur.user_id = $1`
 	err = h.db.SelectContext(c.Request.Context(), &roles, query, userID)
 	if err != nil {
-		h.logger.Error("Failed to get user roles", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to get user roles")
+		h.logger.Error("获取用户角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "获取用户角色失败")
 		return
 	}
 	user.Roles = roles
@@ -262,11 +262,11 @@ func (h *Handler) AssignRole(c *gin.Context) {
 
 	// 验证用户ID和角色ID是否为有效的UUID
 	if _, err := uuid.Parse(req.UserID); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, "Invalid user ID")
+		pkgs.Error(c, http.StatusBadRequest, "无效的用户ID")
 		return
 	}
 	if _, err := uuid.Parse(req.RoleID); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, "Invalid role ID")
+		pkgs.Error(c, http.StatusBadRequest, "无效的角色ID")
 		return
 	}
 
@@ -275,12 +275,12 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	userQuery := `SELECT COUNT(*) FROM iacc_user WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &userCount, userQuery, req.UserID)
 	if err != nil {
-		h.logger.Error("Failed to check user existence", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign role")
+		h.logger.Error("检查用户存在性失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
 		return
 	}
 	if userCount == 0 {
-		pkgs.Error(c, http.StatusNotFound, "User not found")
+		pkgs.Error(c, http.StatusNotFound, "用户不存在")
 		return
 	}
 
@@ -289,12 +289,12 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	roleQuery := `SELECT COUNT(*) FROM iacc_role WHERE id = $1`
 	err = h.db.GetContext(c.Request.Context(), &roleCount, roleQuery, req.RoleID)
 	if err != nil {
-		h.logger.Error("Failed to check role existence", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign role")
+		h.logger.Error("检查角色存在性失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
 		return
 	}
 	if roleCount == 0 {
-		pkgs.Error(c, http.StatusNotFound, "Role not found")
+		pkgs.Error(c, http.StatusNotFound, "角色不存在")
 		return
 	}
 
@@ -303,12 +303,12 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	userRoleQuery := `SELECT COUNT(*) FROM iacc_user_role WHERE user_id = $1 AND role_id = $2`
 	err = h.db.GetContext(c.Request.Context(), &userRoleCount, userRoleQuery, req.UserID, req.RoleID)
 	if err != nil {
-		h.logger.Error("Failed to check user role existence", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign role")
+		h.logger.Error("检查用户角色存在性失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
 		return
 	}
 	if userRoleCount > 0 {
-		pkgs.Error(c, http.StatusBadRequest, "User role already exists")
+		pkgs.Error(c, http.StatusBadRequest, "用户角色已存在")
 		return
 	}
 
@@ -328,8 +328,8 @@ func (h *Handler) AssignRole(c *gin.Context) {
             VALUES (:id, :created_at, :updated_at, :user_id, :role_id)`
 	_, err = h.db.NamedExecContext(c.Request.Context(), query, userRole)
 	if err != nil {
-		h.logger.Error("Failed to assign role to user", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign role")
+		h.logger.Error("为用户分配角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
 		return
 	}
 

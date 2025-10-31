@@ -17,7 +17,8 @@ type AuthMiddleware gin.HandlerFunc
 func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
 	return func(c *gin.Context) {
 		// 白名单
-		if strings.Contains(c.Request.URL.Path, "/v1/template") ||
+		if strings.Contains(c.Request.URL.Path, "/swagger") ||
+			strings.Contains(c.Request.URL.Path, "/v1/template") ||
 			strings.Contains(c.Request.URL.Path, "/v1/auth/login") ||
 			strings.Contains(c.Request.URL.Path, "/v1/auth/refresh-token") {
 			c.Next()

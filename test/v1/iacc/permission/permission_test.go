@@ -2,6 +2,7 @@ package permission_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -50,7 +51,10 @@ func TestMain(m *testing.M) {
 func setupTestPermission(t *testing.T, name string) permission.PermissionEntity {
 	t.Helper()
 
-	metadata := json.RawMessage(`{"description": "测试权限"}`)
+	metadata := permission.Metadata{
+		Method: stringPtr("get"),
+		Path:   stringPtr("/test/path"),
+	}
 	entity := permission.PermissionEntity{
 		Name:     name,
 		Type:     "api",
@@ -59,12 +63,12 @@ func setupTestPermission(t *testing.T, name string) permission.PermissionEntity 
 
 	// 直接在数据库中创建实体
 	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
-	err := testDB.QueryRow(query, entity.Name, entity.Type, entity.Metadata).Scan(&entity.ID, &entity.CreatedAt, &entity.UpdatedAt)
+	err := testDB.QueryRowContext(context.Background(), query, entity.Name, entity.Type, entity.Metadata).Scan(&entity.ID, &entity.CreatedAt, &entity.UpdatedAt)
 	assert.NoError(t, err, "创建测试权限不应出错")
 
 	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
 	t.Cleanup(func() {
-		_, err := testDB.Exec("DELETE FROM iacc_permission WHERE id = $1", entity.ID)
+		_, err := testDB.ExecContext(context.Background(), "DELETE FROM iacc_permission WHERE id = $1", entity.ID)
 		if err != nil {
 			t.Errorf("清理测试权限失败: %v", err)
 		}
@@ -76,7 +80,10 @@ func setupTestPermission(t *testing.T, name string) permission.PermissionEntity 
 func TestCreatePermission(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		metadata := json.RawMessage(`{"description": "新测试权限"}`)
+		metadata := permission.Metadata{
+			Path:   stringPtr("/test/path"),
+			Method: stringPtr("post"),
+		}
 		createReqBody := permission.CreatePermissionReq{
 			Name:     "新的测试权限",
 			Type:     "api",
@@ -108,14 +115,17 @@ func TestCreatePermission(t *testing.T) {
 
 		// 清理
 		t.Cleanup(func() {
-			_, err := testDB.Exec("DELETE FROM iacc_permission WHERE id = $1", createdID)
+			_, err := testDB.ExecContext(context.Background(), "DELETE FROM iacc_permission WHERE id = $1", createdID)
 			assert.NoError(t, err, "清理创建的权限不应出错")
 		})
 	})
 
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
-		metadata := json.RawMessage(`{"description": "测试权限"}`)
+		metadata := permission.Metadata{
+			Path:   stringPtr("/test/path"),
+			Method: stringPtr("post"),
+		}
 		createReqBody := permission.CreatePermissionReq{
 			Type:     "api", // 缺少名称
 			Metadata: metadata,
@@ -194,7 +204,7 @@ func TestGetPermission(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析错误响应体不应出错")
 		assert.Equal(t, http.StatusNotFound, resp.Code, "响应码应该是 404")
-		assert.Equal(t, "Permission not found", resp.Msg, "错误消息应为 'Permission not found'")
+		assert.Equal(t, "权限不存在", resp.Msg, "错误消息应为 '权限不存在'")
 	})
 }
 
@@ -228,7 +238,7 @@ func TestUpdatePermission(t *testing.T) {
 
 		// 验证更新
 		var updatedPermission permission.PermissionEntity
-		err = testDB.Get(&updatedPermission, "SELECT * FROM iacc_permission WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &updatedPermission, "SELECT * FROM iacc_permission WHERE id = $1", entity.ID)
 		assert.NoError(t, err, "从数据库获取更新后的权限不应出错")
 		assert.Equal(t, updateName, updatedPermission.Name, "权限名称应已更新")
 		assert.Equal(t, entity.Type, updatedPermission.Type, "权限类型不应改变")
@@ -263,7 +273,7 @@ func TestDeletePermission(t *testing.T) {
 
 		// 验证删除
 		var count int
-		err = testDB.Get(&count, "SELECT COUNT(*) FROM iacc_permission WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM iacc_permission WHERE id = $1", entity.ID)
 		assert.NoError(t, err, "查询已删除权限的计数不应出错")
 		assert.Equal(t, 0, count, "删除后权限在数据库中应不存在")
 	})
@@ -298,4 +308,9 @@ func TestQueryPermissionList(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 		assert.GreaterOrEqual(t, resp.Data.Total, int64(2), "总权限数应至少为 2")
 	})
+}
+
+// 添加辅助函数用于创建字符串指针
+func stringPtr(s string) *string {
+	return &s
 }

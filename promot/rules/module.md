@@ -13,6 +13,6 @@
 
 6. 参考`internal/modules/template`的`type.go`，给新业务下某个表的`type.go`中定义该数据表涉及的数据库表模型、表相关接口的输入参数和输出参数，代码注释使用中文，且在代码行上一行。
 
-7. 参考`internal/modules/template`的`handler.go`，给新业务下某个表`handler.go`中实现在第4步中定义的相关控制器接口。一个接口主要分为 绑定参数、验证参数、创建数据实体、数据库表操作、返回接口响应等几个步骤，然后给接口函数增加swagger文档注释，代码注释使用中文。**特别注意：使用sqlx操作数据库时遵守`promot/rules/sqlx.md`内的规则**
+7. 参考`internal/modules/template`的`handler.go`，给新业务下某个表`handler.go`中实现在第4步中定义的相关控制器接口。一个接口主要分为 绑定参数、验证参数、创建数据实体、数据库表操作、返回接口响应等几个步骤。在数据库操作中，表名、字段名以`migration/db`目录下的sql文件为准。最后给接口函数增加swagger文档注释，代码注释使用中文。**特别注意：使用sqlx操作数据库时遵守`promot/rules/sqlx.md`内的规则**
 
 8. 在internal/app/wire.go文件中注册新业务涉及的所有handler构造函数，然后使用 wire.bind 绑定 api/v1/intf 内定义的接口；之后，终端运行`wire ./internal/app` 更新依赖。

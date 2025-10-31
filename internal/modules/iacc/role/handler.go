@@ -68,19 +68,19 @@ func (h *Handler) Create(c *gin.Context) {
 		Description: req.Description,
 	}
 
-	query := `INSERT INTO role (name, description) VALUES (:name, :description) RETURNING id, created_at, updated_at`
+	query := `INSERT INTO iacc_role (name, description) VALUES (:name, :description) RETURNING id, created_at, updated_at`
 	stmt, err := h.db.PrepareNamedContext(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to prepare named statement for create role", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create role")
+		h.logger.Error("创建角色语句准备失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建角色失败")
 		return
 	}
 	defer stmt.Close()
 
 	err = stmt.GetContext(c.Request.Context(), entity, entity)
 	if err != nil {
-		h.logger.Error("Failed to create role", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create role")
+		h.logger.Error("创建角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建角色失败")
 		return
 	}
 
@@ -102,20 +102,20 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if _, err := uuid.Parse(id); err != nil {
-		pkgs.Error(c, http.StatusNotFound, "Role not found")
+		pkgs.Error(c, http.StatusNotFound, "角色不存在")
 		return
 	}
 
 	var entity RoleEntity
-	query := `SELECT id, name, description, created_at, updated_at FROM role WHERE id = $1`
+	query := `SELECT id, name, description, created_at, updated_at FROM iacc_role WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			pkgs.Error(c, http.StatusNotFound, "Role not found")
+			pkgs.Error(c, http.StatusNotFound, "角色不存在")
 			return
 		}
-		h.logger.Error("Failed to get role", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to get role")
+		h.logger.Error("获取角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "获取角色失败")
 		return
 	}
 
@@ -171,12 +171,12 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 		return
 	}
 
-	query := "UPDATE role SET " + strings.Join(setClauses, ", ") + " WHERE id = :id"
+	query := "UPDATE iacc_role SET " + strings.Join(setClauses, ", ") + " WHERE id = :id"
 
 	_, err := h.db.NamedExecContext(c.Request.Context(), query, params)
 	if err != nil {
-		h.logger.Error("Failed to update role", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to update role")
+		h.logger.Error("更新角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "更新角色失败")
 		return
 	}
 
@@ -197,17 +197,17 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 func (h *Handler) DeleteByID(c *gin.Context) {
 	id := c.Param("id")
 
-	query := `DELETE FROM role WHERE id = :id`
+	query := `DELETE FROM iacc_role WHERE id = :id`
 	res, err := h.db.NamedExecContext(c.Request.Context(), query, map[string]interface{}{"id": id})
 	if err != nil {
-		h.logger.Error("Failed to delete role", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete role")
+		h.logger.Error("删除角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除角色失败")
 		return
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
-		h.logger.Error("Failed to get affected rows for role deletion", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete role")
+		h.logger.Error("获取角色删除影响行数失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除角色失败")
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *Handler) QueryList(c *gin.Context) {
 	var entities []RoleEntity
 	var total int64
 
-	baseQuery := "FROM role WHERE 1=1"
+	baseQuery := "FROM iacc_role WHERE 1=1"
 	params := make(map[string]interface{})
 
 	if req.Name != "" {
@@ -253,15 +253,15 @@ func (h *Handler) QueryList(c *gin.Context) {
 	countQuery := "SELECT count(*) " + baseQuery
 	nstmt, err := h.db.PrepareNamedContext(c.Request.Context(), countQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named count query for roles", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query roles")
+		h.logger.Error("准备角色命名计数查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询角色失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.GetContext(c.Request.Context(), &total, params)
 	if err != nil {
-		h.logger.Error("Failed to count roles", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query roles")
+		h.logger.Error("统计角色数量失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询角色失败")
 		return
 	}
 
@@ -276,15 +276,15 @@ func (h *Handler) QueryList(c *gin.Context) {
 
 	nstmt, err = h.db.PrepareNamedContext(c.Request.Context(), listQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named list query for roles", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query roles")
+		h.logger.Error("准备角色命名列表查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询角色失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.SelectContext(c.Request.Context(), &entities, params)
 	if err != nil {
-		h.logger.Error("Failed to select roles", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query roles")
+		h.logger.Error("查询角色列表失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询角色失败")
 		return
 	}
 
@@ -329,8 +329,8 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 
 	tx, err := h.db.BeginTxx(c.Request.Context(), nil)
 	if err != nil {
-		h.logger.Error("Failed to begin transaction for assigning permissions", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign permissions")
+		h.logger.Error("为分配权限开启事务失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配权限失败")
 		return
 	}
 	defer func() {
@@ -343,16 +343,16 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 		} else {
 			err = tx.Commit()
 			if err != nil {
-				h.logger.Error("Failed to commit transaction for assigning permissions", zap.Error(err))
+				h.logger.Error("提交分配权限事务失败", zap.Error(err))
 			}
 		}
 	}()
 
 	// 删除旧的关联
-	deleteQuery := `DELETE FROM role_permission WHERE role_id = $1`
+	deleteQuery := `DELETE FROM iacc_role_permission WHERE role_id = $1`
 	if _, err = tx.ExecContext(c.Request.Context(), deleteQuery, roleID); err != nil {
-		h.logger.Error("Failed to delete old permissions for role", zap.String("roleID", roleID), zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign permissions")
+		h.logger.Error("删除角色旧权限失败", zap.String("roleID", roleID), zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配权限失败")
 		return
 	}
 
@@ -370,10 +370,10 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 		params = append(params, permID)
 	}
 
-	insertQuery := `INSERT INTO role_permission (role_id, permission_id) VALUES ` + strings.Join(values, ",")
+	insertQuery := `INSERT INTO iacc_role_permission (role_id, permission_id) VALUES ` + strings.Join(values, ",")
 	if _, err = tx.ExecContext(c.Request.Context(), insertQuery, params...); err != nil {
-		h.logger.Error("Failed to insert new permissions for role", zap.String("roleID", roleID), zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to assign permissions")
+		h.logger.Error("为角色插入新权限失败", zap.String("roleID", roleID), zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "分配权限失败")
 		return
 	}
 

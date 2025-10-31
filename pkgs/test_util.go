@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,7 @@ type user struct {
 	ID       string
 	Username string
 	Password string
+	Phone    string
 }
 
 type loginRequest struct {
@@ -74,17 +76,21 @@ func (testUtil *TestUtil) SetupTestRole(permissions []string) role {
 func (testUtil *TestUtil) SetupTestUser() user {
 	testUtil.T.Helper()
 	password := "strongpassword"
+	username := "testuser_" + uuid.NewString()[:8]
+	// 使用UUID的一部分生成唯一的手机号
+	phone := fmt.Sprintf("138%s", uuid.NewString()[:8])
 	u := user{
-		Username: "testuser_" + uuid.NewString()[:8],
+		Username: username,
 		Password: password,
+		Phone:    phone,
 	}
 
-	query := `INSERT INTO iacc_user (username, password) VALUES ($1, $2) RETURNING id`
-	err := testUtil.DB.QueryRow(query, u.Username, u.Password).Scan(&u.ID)
+	query := `INSERT INTO "iacc_user" (username, password, phone) VALUES ($1, $2, $3) RETURNING id`
+	err := testUtil.DB.QueryRow(query, u.Username, u.Password, u.Phone).Scan(&u.ID)
 	require.NoError(testUtil.T, err, "创建测试用户失败")
 
 	testUtil.T.Cleanup(func() {
-		_, err := testUtil.DB.Exec("DELETE FROM iacc_user WHERE id = $1", u.ID)
+		_, err := testUtil.DB.Exec(`DELETE FROM "iacc_user" WHERE id = $1`, u.ID)
 		assert.NoError(testUtil.T, err, "清理测试用户失败")
 	})
 
@@ -94,12 +100,11 @@ func (testUtil *TestUtil) SetupTestUser() user {
 // 给测试用户赋予角色
 func (testUtil *TestUtil) AssignRoleToUser(userID, roleID string) {
 	testUtil.T.Helper()
-	assocID := uuid.NewString()
-	_, err := testUtil.DB.Exec("INSERT INTO iacc_user_role (id, user_id, role_id) VALUES ($1, $2, $3)", assocID, userID, roleID)
+	_, err := testUtil.DB.Exec(`INSERT INTO "iacc_user_role" (user_id, role_id) VALUES ($1, $2)`, userID, roleID)
 	require.NoError(testUtil.T, err, "给用户赋予角色失败")
 
 	testUtil.T.Cleanup(func() {
-		_, err := testUtil.DB.Exec("DELETE FROM iacc_user_role WHERE id = $1", assocID)
+		_, err := testUtil.DB.Exec(`DELETE FROM "iacc_user_role" WHERE user_id = $1 AND role_id = $2`, userID, roleID)
 		assert.NoError(testUtil.T, err, "清理用户角色关联失败")
 	})
 }

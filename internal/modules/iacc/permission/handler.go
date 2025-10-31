@@ -9,11 +9,20 @@
 //	- application/json
 //
 //	Schemes: http
+//
+//	Security:
+//	- JWT:
+//
+//	SecurityDefinitions:
+//	 JWT:
+//	   type: apiKey
+//	   name: Authorization
+//	   in: header
+//	   description: JWT token for authentication
 package permission
 
 import (
 	"database/sql"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -51,6 +60,7 @@ func NewPermissionHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.Reque
 //	@Success  200   {object}  pkgs.Response{data=string}  "创建成功，返回权限ID"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Security JWT
 //	@Router   /permission [post]
 func (h *Handler) Create(c *gin.Context) {
 	// 绑定请求参数
@@ -76,16 +86,16 @@ func (h *Handler) Create(c *gin.Context) {
 	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES (:name, :type, :metadata) RETURNING id, created_at, updated_at`
 	stmt, err := h.db.PrepareNamedContext(c.Request.Context(), query)
 	if err != nil {
-		h.logger.Error("Failed to prepare named statement for create", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create permission")
+		h.logger.Error("创建权限语句准备失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建权限失败")
 		return
 	}
 	defer stmt.Close()
 
 	err = stmt.GetContext(c.Request.Context(), entity, entity)
 	if err != nil {
-		h.logger.Error("Failed to create permission", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to create permission")
+		h.logger.Error("创建权限失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "创建权限失败")
 		return
 	}
 
@@ -105,6 +115,7 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure  400 {object}  pkgs.Response           "请求参数错误"
 //	@Failure  404 {object}  pkgs.Response           "权限不存在"
 //	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
+//	@Security JWT
 //	@Router   /permission/{id} [get]
 func (h *Handler) GetByID(c *gin.Context) {
 	// 获取 ID
@@ -112,7 +123,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 
 	// 验证ID是否为有效的UUID
 	if _, err := uuid.Parse(id); err != nil {
-		pkgs.Error(c, http.StatusNotFound, "Permission not found")
+		pkgs.Error(c, http.StatusNotFound, "权限不存在")
 		return
 	}
 
@@ -122,11 +133,11 @@ func (h *Handler) GetByID(c *gin.Context) {
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			pkgs.Error(c, http.StatusNotFound, "Permission not found")
+			pkgs.Error(c, http.StatusNotFound, "权限不存在")
 			return
 		}
-		h.logger.Error("Failed to get permission", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to get permission")
+		h.logger.Error("获取权限失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "获取权限失败")
 		return
 	}
 
@@ -154,6 +165,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 //	@Success  200   {object}  pkgs.Response       "更新成功"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
+//	@Security JWT
 //	@Router   /permission/{id} [put]
 func (h *Handler) UpdateByID(c *gin.Context) {
 	// 获取 ID
@@ -199,8 +211,8 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 	// 执行数据库操作
 	_, err := h.db.NamedExecContext(c.Request.Context(), query, params)
 	if err != nil {
-		h.logger.Error("Failed to update permission", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to update permission")
+		h.logger.Error("更新权限失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "更新权限失败")
 		return
 	}
 
@@ -219,6 +231,7 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 //	@Success  200 {object}  pkgs.Response{data=int64} "删除成功，返回影响行数"
 //	@Failure  400 {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500 {object}  pkgs.Response       "服务器内部错误"
+//	@Security JWT
 //	@Router   /permission/{id} [delete]
 func (h *Handler) DeleteByID(c *gin.Context) {
 	// 获取 ID
@@ -228,14 +241,14 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 	query := `DELETE FROM iacc_permission WHERE id = :id`
 	res, err := h.db.NamedExecContext(c.Request.Context(), query, map[string]interface{}{"id": id})
 	if err != nil {
-		h.logger.Error("Failed to delete permission", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete permission")
+		h.logger.Error("删除权限失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除权限失败")
 		return
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
-		h.logger.Error("Failed to get affected rows", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to delete permission")
+		h.logger.Error("获取影响行数失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "删除权限失败")
 		return
 	}
 
@@ -257,6 +270,7 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 //	@Success  200     {object}  pkgs.Response{data=PermissionListRes}  "获取成功，返回权限列表"
 //	@Failure  400     {object}  pkgs.Response               "请求参数错误"
 //	@Failure  500     {object}  pkgs.Response               "服务器内部错误"
+//	@Security JWT
 //	@Router   /permission/list [get]
 func (h *Handler) QueryList(c *gin.Context) {
 	// 绑定请求参数
@@ -291,15 +305,15 @@ func (h *Handler) QueryList(c *gin.Context) {
 	countQuery := "SELECT count(*) " + baseQuery
 	nstmt, err := h.db.PrepareNamedContext(c.Request.Context(), countQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named count query", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query permissions")
+		h.logger.Error("准备命名计数查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询权限失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.GetContext(c.Request.Context(), &total, params)
 	if err != nil {
-		h.logger.Error("Failed to count permissions", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query permissions")
+		h.logger.Error("统计权限数量失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询权限失败")
 		return
 	}
 
@@ -315,32 +329,27 @@ func (h *Handler) QueryList(c *gin.Context) {
 
 	nstmt, err = h.db.PrepareNamedContext(c.Request.Context(), listQuery)
 	if err != nil {
-		h.logger.Error("Failed to prepare named list query", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query permissions")
+		h.logger.Error("准备命名列表查询失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询权限失败")
 		return
 	}
 	defer nstmt.Close()
 	err = nstmt.SelectContext(c.Request.Context(), &entities, params)
 	if err != nil {
-		h.logger.Error("Failed to select permissions", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "Failed to query permissions")
+		h.logger.Error("查询权限列表失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询权限失败")
 		return
 	}
 
 	// 返回结果
 	var responseEntities []PermissionRes
 	for _, entity := range entities {
-		// 处理可能的 null metadata
-		var metadata json.RawMessage
-		if len(entity.Metadata) > 0 && string(entity.Metadata) != "null" {
-			metadata = entity.Metadata
-		}
 
 		responseEntities = append(responseEntities, PermissionRes{
 			ID:        entity.ID,
 			Name:      entity.Name,
 			Type:      entity.Type,
-			Metadata:  metadata,
+			Metadata:  entity.Metadata,
 			CreatedAt: entity.CreatedAt.Format(time.RFC3339),
 			UpdatedAt: entity.UpdatedAt.Format(time.RFC3339),
 		})
