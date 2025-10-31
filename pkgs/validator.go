@@ -5,34 +5,51 @@ import (
 	"reflect"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/locales/zh"
+	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	zh_translations "github.com/go-playground/validator/v10/translations/zh"
 )
 
-// RequestValidator provides a reusable request validation logic.
+// 提供可重用的请求验证逻辑。
 type RequestValidator struct {
 	validate *validator.Validate
+	trans    ut.Translator
 }
 
-// NewRequestValidator creates a new RequestValidator.
+// 创建一个新的 RequestValidator。
 func NewRequestValidator() *RequestValidator {
+	validate := validator.New()
+	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := fld.Tag.Get("label")
+		if name == "" {
+			return fld.Name
+		}
+		return name
+	})
+	chinese := zh.New()
+	uni := ut.New(chinese, chinese)
+	trans, _ := uni.GetTranslator("zh")
+	zh_translations.RegisterDefaultTranslations(validate, trans)
 	return &RequestValidator{
-		validate: validator.New(),
+		validate: validate,
+		trans:    trans,
 	}
 }
 
-// Validate validates the given request struct.
+// 验证给定的请求结构体。
 func (v *RequestValidator) Validate(c *gin.Context, req interface{}) error {
 	if err := v.validate.Struct(req); err != nil {
-		// Get the first validation error
+		// 获取第一个验证错误
 		if validationErrors, ok := err.(validator.ValidationErrors); ok && len(validationErrors) > 0 {
-			// Try to get custom error message
+			// 尝试获取自定义错误消息
 			field, _ := reflect.TypeOf(req).Elem().FieldByName(validationErrors[0].Field())
 			message := field.Tag.Get("message")
 			if message == "" {
-				// If there is no custom message, use the default error
-				Error(c, http.StatusBadRequest, validationErrors[0].Error())
+				// 如果没有自定义消息，则使用翻译后的错误
+				Error(c, http.StatusBadRequest, validationErrors[0].Translate(v.trans))
 			} else {
-				// Use custom error message
+				// 使用自定义错误消息
 				Error(c, http.StatusBadRequest, message)
 			}
 		} else {

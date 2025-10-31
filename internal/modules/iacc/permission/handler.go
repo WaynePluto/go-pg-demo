@@ -73,7 +73,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 数据库操作
-	query := `INSERT INTO permission (name, type, metadata) VALUES (:name, :type, :metadata) RETURNING id, created_at, updated_at`
+	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES (:name, :type, :metadata) RETURNING id, created_at, updated_at`
 	stmt, err := h.db.PrepareNamedContext(c.Request.Context(), query)
 	if err != nil {
 		h.logger.Error("Failed to prepare named statement for create", zap.Error(err))
@@ -118,7 +118,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 
 	// 数据库操作
 	var entity PermissionEntity
-	query := `SELECT id, name, type, metadata, created_at, updated_at FROM permission WHERE id = $1`
+	query := `SELECT id, name, type, metadata, created_at, updated_at FROM iacc_permission WHERE id = $1`
 	err := h.db.GetContext(c.Request.Context(), &entity, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -194,7 +194,7 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 		return
 	}
 
-	query := "UPDATE permission SET " + strings.Join(setClauses, ", ") + " WHERE id = :id"
+	query := "UPDATE iacc_permission SET " + strings.Join(setClauses, ", ") + " WHERE id = :id"
 
 	// 执行数据库操作
 	_, err := h.db.NamedExecContext(c.Request.Context(), query, params)
@@ -225,7 +225,7 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 	id := c.Param("id")
 
 	// 数据库操作
-	query := `DELETE FROM permission WHERE id = :id`
+	query := `DELETE FROM iacc_permission WHERE id = :id`
 	res, err := h.db.NamedExecContext(c.Request.Context(), query, map[string]interface{}{"id": id})
 	if err != nil {
 		h.logger.Error("Failed to delete permission", zap.Error(err))
@@ -275,7 +275,7 @@ func (h *Handler) QueryList(c *gin.Context) {
 	var entities []PermissionEntity
 	var total int64
 
-	baseQuery := "FROM permission WHERE 1=1"
+	baseQuery := "FROM iacc_permission WHERE 1=1"
 	params := make(map[string]interface{})
 
 	if req.Name != "" {

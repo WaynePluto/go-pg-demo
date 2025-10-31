@@ -130,8 +130,8 @@ func (testUtil *TestUtil) GetAccessTokenByUser(testUser user) string {
 
 // 获取访问令牌, 传permission为空数组，就是无权限访问令牌
 func (testUtil *TestUtil) GetAccessUserToken(permissions []string) string {
-	roleId := testUtil.SetupTestRole(permissions).ID
+	// roleId := testUtil.SetupTestRole(permissions).ID
 	testUser := testUtil.SetupTestUser()
-	testUtil.AssignRoleToUser(testUser.ID, roleId)
+	// testUtil.AssignRoleToUser(testUser.ID, roleId)
 	return testUtil.GetAccessTokenByUser(testUser)
 }

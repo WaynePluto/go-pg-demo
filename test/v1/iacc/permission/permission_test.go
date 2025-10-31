@@ -3,7 +3,6 @@ package permission_test
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -48,12 +47,12 @@ func TestMain(m *testing.M) {
 }
 
 // 在数据库中创建一个权限用于测试，并注册一个清理函数以便在测试结束后删除它
-func setupTestPermission(t *testing.T) permission.PermissionEntity {
+func setupTestPermission(t *testing.T, name string) permission.PermissionEntity {
 	t.Helper()
 
 	metadata := json.RawMessage(`{"description": "测试权限"}`)
 	entity := permission.PermissionEntity{
-		Name:     "测试权限",
+		Name:     name,
 		Type:     "api",
 		Metadata: metadata,
 	}
@@ -83,9 +82,15 @@ func TestCreatePermission(t *testing.T) {
 			Type:     "api",
 			Metadata: metadata,
 		}
+
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/permission", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		// 执行
 		w := httptest.NewRecorder()
@@ -118,6 +123,11 @@ func TestCreatePermission(t *testing.T) {
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/permission", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		// 执行
 		w := httptest.NewRecorder()
@@ -129,18 +139,23 @@ func TestCreatePermission(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &errResp)
 		assert.NoError(t, err, "解析错误响应体不应出错")
 		assert.Equal(t, http.StatusBadRequest, errResp.Code, "响应码应该是 400")
-		assert.Contains(t, errResp.Msg, "Key: 'CreatePermissionReq.Name' Error:Field validation for 'Name' failed on the 'required' tag", "错误消息应包含名称必填的验证错误")
+		assert.Contains(t, errResp.Msg, "权限名称为必填字段", "错误消息应包含名称必填的验证错误")
 	})
 }
 
 func TestGetPermission(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		entity := setupTestPermission(t)
+		entity := setupTestPermission(t, "测试权限-Get")
 
 		// 执行
 		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/"+entity.ID, nil)
-
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
@@ -164,7 +179,12 @@ func TestGetPermission(t *testing.T) {
 
 		// 执行
 		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/"+nonExistentID, nil)
-
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
@@ -181,7 +201,7 @@ func TestGetPermission(t *testing.T) {
 func TestUpdatePermission(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		entity := setupTestPermission(t)
+		entity := setupTestPermission(t, "测试权限-Update")
 		updateName := "更新后的权限名称"
 		updateReqBody := permission.UpdatePermissionReq{
 			Name: &updateName,
@@ -189,6 +209,11 @@ func TestUpdatePermission(t *testing.T) {
 		bodyBytes, _ := json.Marshal(updateReqBody)
 		req, _ := http.NewRequest(http.MethodPut, "/v1/permission/"+entity.ID, bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 
 		// 执行
 		w := httptest.NewRecorder()
@@ -213,11 +238,16 @@ func TestUpdatePermission(t *testing.T) {
 func TestDeletePermission(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		entity := setupTestPermission(t)
+		entity := setupTestPermission(t, "测试权限-Delete")
 
 		// 执行
 		req, _ := http.NewRequest(http.MethodDelete, "/v1/permission/"+entity.ID, nil)
-
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
@@ -227,8 +257,9 @@ func TestDeletePermission(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &deleteResp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, deleteResp.Code, "响应码应该是 200")
-		affectedRows := int(math.Round(deleteResp.Data.(float64)))
-		assert.Equal(t, 1, affectedRows, "应影响 1 行")
+		affectedID, ok := deleteResp.Data.(float64)
+		assert.True(t, ok, "响应数据应该是数字")
+		assert.Equal(t, 1, int(affectedID), "应影响 1 行")
 
 		// 验证删除
 		var count int
@@ -241,12 +272,17 @@ func TestDeletePermission(t *testing.T) {
 func TestQueryPermissionList(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备 - 创建多个测试权限
-		setupTestPermission(t)
-		setupTestPermission(t)
+		setupTestPermission(t, "测试权限-Query1")
+		setupTestPermission(t, "测试权限-Query2")
 
 		// 执行
 		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?page=1&pageSize=10", nil)
-
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
