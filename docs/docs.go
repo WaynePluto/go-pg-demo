@@ -24,67 +24,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/assign-role": {
-            "post": {
-                "description": "为用户分配角色",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "分配角色",
-                "parameters": [
-                    {
-                        "description": "分配角色请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/auth.AssignRoleRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "分配成功，返回用户角色关联ID",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "请求参数错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/auth/login": {
             "post": {
-                "description": "用户登录",
+                "description": "用户登录，获取访问令牌和刷新令牌",
                 "consumes": [
                     "application/json"
                 ],
@@ -97,18 +39,18 @@ const docTemplate = `{
                 "summary": "用户登录",
                 "parameters": [
                     {
-                        "description": "用户登录请求参数",
+                        "description": "登录请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/auth.LoginReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "登录成功，返回访问令牌等信息",
+                        "description": "登录成功",
                         "schema": {
                             "allOf": [
                                 {
@@ -118,7 +60,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.LoginResponse"
+                                            "$ref": "#/definitions/auth.LoginRes"
                                         }
                                     }
                                 }
@@ -146,56 +88,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/me": {
-            "get": {
-                "description": "获取当前登录用户的信息",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "获取当前用户信息",
-                "responses": {
-                    "200": {
-                        "description": "获取成功，返回用户信息",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/pkgs.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/auth.UserInfoResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "未授权",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器内部错误",
-                        "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/refresh": {
+        "/auth/refresh-token": {
             "post": {
-                "description": "刷新访问令牌",
+                "description": "通过刷新令牌获取新的访问令牌",
                 "consumes": [
                     "application/json"
                 ],
@@ -205,7 +100,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "刷新token",
+                "summary": "刷新访问令牌",
                 "parameters": [
                     {
                         "description": "刷新令牌请求参数",
@@ -213,13 +108,13 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.RefreshTokenRequest"
+                            "$ref": "#/definitions/auth.RefreshTokenReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "刷新成功，返回新的访问令牌等信息",
+                        "description": "刷新成功",
                         "schema": {
                             "allOf": [
                                 {
@@ -229,7 +124,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.RefreshTokenResponse"
+                                            "$ref": "#/definitions/auth.RefreshTokenRes"
                                         }
                                     }
                                 }
@@ -243,7 +138,57 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "无效的刷新令牌",
+                        "description": "刷新令牌无效",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/user-detail": {
+            "get": {
+                "description": "返回用户基本信息、角色列表、权限列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "获取当前用户详情",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/auth.UserDetailRes"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "用户不存在",
                         "schema": {
                             "$ref": "#/definitions/pkgs.Response"
                         }
@@ -1676,22 +1621,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "auth.AssignRoleRequest": {
-            "type": "object",
-            "required": [
-                "role_id",
-                "user_id"
-            ],
-            "properties": {
-                "role_id": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.LoginRequest": {
+        "auth.LoginReq": {
             "type": "object",
             "required": [
                 "password",
@@ -1706,24 +1636,21 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginResponse": {
+        "auth.LoginRes": {
             "type": "object",
             "properties": {
                 "access_token": {
                     "type": "string"
                 },
-                "expires_at": {
-                    "type": "string"
+                "expires_in": {
+                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/auth.UserDTO"
                 }
             }
         },
-        "auth.RefreshTokenRequest": {
+        "auth.RefreshTokenReq": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -1734,21 +1661,77 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.RefreshTokenResponse": {
+        "auth.RefreshTokenRes": {
             "type": "object",
             "properties": {
                 "access_token": {
                     "type": "string"
                 },
-                "expires_at": {
-                    "type": "string"
+                "expires_in": {
+                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"
                 }
             }
         },
-        "auth.RoleDTO": {
+        "auth.UserDetailRes": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/auth.UserPermRes"
+                    }
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "profile": {},
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/auth.UserRoleRes"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.UserPermRes": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.UserRoleRes": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1758,46 +1741,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.UserDTO": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "auth.UserInfoResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "profile": {
-                    "type": "string"
-                },
-                "roles": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/auth.RoleDTO"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "username": {
                     "type": "string"
                 }
             }

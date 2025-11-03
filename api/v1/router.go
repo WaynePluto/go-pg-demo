@@ -96,7 +96,7 @@ func (r *Router) RegisterIACCAuth() {
 	auth := r.RouterGroup.Group("/auth")
 	{
 		auth.POST("/login", r.AuthHandler.Login)
-		auth.POST("/refresh", r.AuthHandler.RefreshToken)
-		auth.GET("/me", r.AuthHandler.GetMe)
+		auth.POST("/refresh-token", r.AuthHandler.RefreshToken)
+		auth.GET("/user-detail", r.AuthHandler.UserDetail)
 	}
 }

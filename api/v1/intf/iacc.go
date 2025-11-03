@@ -35,5 +35,5 @@ type UserHandler interface {
 type AuthHandler interface {
 	Login(c *gin.Context)
 	RefreshToken(c *gin.Context)
-	GetMe(c *gin.Context)
+	UserDetail(c *gin.Context)
 }

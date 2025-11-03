@@ -36,6 +36,7 @@ func NewApp(
 	loggerMiddleware middlewares.LoggerMiddleware,
 	authMiddleware middlewares.AuthMiddleware,
 	recoveryMiddleware middlewares.RecoveryMiddleware,
+	permissionMiddleware middlewares.PermissionMiddleware,
 	v1Router *v1.Router,
 ) (*App, error) {
 
@@ -46,6 +47,7 @@ func NewApp(
 	}
 	server.Use(gin.HandlerFunc(loggerMiddleware))
 	server.Use(gin.HandlerFunc(authMiddleware))
+	server.Use(gin.HandlerFunc(permissionMiddleware))
 	server.Use(gin.HandlerFunc(recoveryMiddleware))
 
 	v1Router.Register()

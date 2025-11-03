@@ -1,16 +1,6 @@
 basePath: /v1
 definitions:
-  auth.AssignRoleRequest:
-    properties:
-      role_id:
-        type: string
-      user_id:
-        type: string
-    required:
-    - role_id
-    - user_id
-    type: object
-  auth.LoginRequest:
+  auth.LoginReq:
     properties:
       password:
         type: string
@@ -20,66 +10,75 @@ definitions:
     - password
     - username
     type: object
-  auth.LoginResponse:
+  auth.LoginRes:
     properties:
       access_token:
         type: string
-      expires_at:
-        type: string
+      expires_in:
+        type: integer
       refresh_token:
         type: string
-      user:
-        $ref: '#/definitions/auth.UserDTO'
     type: object
-  auth.RefreshTokenRequest:
+  auth.RefreshTokenReq:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  auth.RefreshTokenResponse:
+  auth.RefreshTokenRes:
     properties:
       access_token:
         type: string
-      expires_at:
-        type: string
+      expires_in:
+        type: integer
       refresh_token:
         type: string
     type: object
-  auth.RoleDTO:
+  auth.UserDetailRes:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/auth.UserPermRes'
+        type: array
+      phone:
+        type: string
+      profile: {}
+      roles:
+        items:
+          $ref: '#/definitions/auth.UserRoleRes'
+        type: array
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  auth.UserPermRes:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      type:
+        type: string
+    type: object
+  auth.UserRoleRes:
     properties:
       description:
         type: string
       id:
         type: string
       name:
-        type: string
-    type: object
-  auth.UserDTO:
-    properties:
-      id:
-        type: string
-      username:
-        type: string
-    type: object
-  auth.UserInfoResponse:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      phone:
-        type: string
-      profile:
-        type: string
-      roles:
-        items:
-          $ref: '#/definitions/auth.RoleDTO'
-        type: array
-      updated_at:
-        type: string
-      username:
         type: string
     type: object
   permission.CreatePermissionReq:
@@ -331,64 +330,29 @@ info:
   title: Go-PG Demo API
   version: "1.0"
 paths:
-  /auth/assign-role:
-    post:
-      consumes:
-      - application/json
-      description: 为用户分配角色
-      parameters:
-      - description: 分配角色请求参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/auth.AssignRoleRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 分配成功，返回用户角色关联ID
-          schema:
-            allOf:
-            - $ref: '#/definitions/pkgs.Response'
-            - properties:
-                data:
-                  type: string
-              type: object
-        "400":
-          description: 请求参数错误
-          schema:
-            $ref: '#/definitions/pkgs.Response'
-        "500":
-          description: 服务器内部错误
-          schema:
-            $ref: '#/definitions/pkgs.Response'
-      summary: 分配角色
-      tags:
-      - auth
   /auth/login:
     post:
       consumes:
       - application/json
-      description: 用户登录
+      description: 用户登录，获取访问令牌和刷新令牌
       parameters:
-      - description: 用户登录请求参数
+      - description: 登录请求参数
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/auth.LoginReq'
       produces:
       - application/json
       responses:
         "200":
-          description: 登录成功，返回访问令牌等信息
+          description: 登录成功
           schema:
             allOf:
             - $ref: '#/definitions/pkgs.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.LoginResponse'
+                  $ref: '#/definitions/auth.LoginRes'
               type: object
         "400":
           description: 请求参数错误
@@ -405,71 +369,73 @@ paths:
       summary: 用户登录
       tags:
       - auth
-  /auth/me:
-    get:
-      consumes:
-      - application/json
-      description: 获取当前登录用户的信息
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 获取成功，返回用户信息
-          schema:
-            allOf:
-            - $ref: '#/definitions/pkgs.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/auth.UserInfoResponse'
-              type: object
-        "401":
-          description: 未授权
-          schema:
-            $ref: '#/definitions/pkgs.Response'
-        "500":
-          description: 服务器内部错误
-          schema:
-            $ref: '#/definitions/pkgs.Response'
-      summary: 获取当前用户信息
-      tags:
-      - auth
-  /auth/refresh:
+  /auth/refresh-token:
     post:
       consumes:
       - application/json
-      description: 刷新访问令牌
+      description: 通过刷新令牌获取新的访问令牌
       parameters:
       - description: 刷新令牌请求参数
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.RefreshTokenRequest'
+          $ref: '#/definitions/auth.RefreshTokenReq'
       produces:
       - application/json
       responses:
         "200":
-          description: 刷新成功，返回新的访问令牌等信息
+          description: 刷新成功
           schema:
             allOf:
             - $ref: '#/definitions/pkgs.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.RefreshTokenResponse'
+                  $ref: '#/definitions/auth.RefreshTokenRes'
               type: object
         "400":
           description: 请求参数错误
           schema:
             $ref: '#/definitions/pkgs.Response'
         "401":
-          description: 无效的刷新令牌
+          description: 刷新令牌无效
           schema:
             $ref: '#/definitions/pkgs.Response'
         "500":
           description: 服务器内部错误
           schema:
             $ref: '#/definitions/pkgs.Response'
-      summary: 刷新token
+      summary: 刷新访问令牌
+      tags:
+      - auth
+  /auth/user-detail:
+    get:
+      description: 返回用户基本信息、角色列表、权限列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.UserDetailRes'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取当前用户详情
       tags:
       - auth
   /permission:

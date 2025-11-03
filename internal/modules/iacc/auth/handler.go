@@ -1,16 +1,16 @@
 package auth
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
-	"go-pg-demo/pkgs"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
+
+	"go-pg-demo/pkgs"
 )
 
 type Handler struct {
@@ -21,318 +21,252 @@ type Handler struct {
 }
 
 func NewAuthHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.RequestValidator, config *pkgs.Config) *Handler {
-	return &Handler{
-		db:        db,
-		logger:    logger,
-		validator: validator,
-		config:    config,
-	}
+	return &Handler{db: db, logger: logger, validator: validator, config: config}
 }
 
 // Login 用户登录
-//
-//	@Summary  用户登录
-//	@Description  用户登录
-//	@Tags   auth
-//	@Accept   json
-//	@Produce  json
-//	@Param    request body  LoginRequest  true  "用户登录请求参数"
-//	@Success  200   {object}  pkgs.Response{data=LoginResponse} "登录成功，返回访问令牌等信息"
-//	@Failure  400   {object}  pkgs.Response           "请求参数错误"
-//	@Failure  401   {object}  pkgs.Response           "用户名或密码错误"
-//	@Failure  500   {object}  pkgs.Response           "服务器内部错误"
-//	@Router   /auth/login [post]
+// @Summary 用户登录
+// @Description 用户登录，获取访问令牌和刷新令牌
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body LoginReq true "登录请求参数"
+// @Success 200 {object} pkgs.Response{data=LoginRes} "登录成功"
+// @Failure 400 {object} pkgs.Response "请求参数错误"
+// @Failure 401 {object} pkgs.Response "用户名或密码错误"
+// @Failure 500 {object} pkgs.Response "服务器内部错误"
+// @Router /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
-	// 绑定请求参数
-	var req LoginRequest
+	var req LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		pkgs.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	// 验证请求参数
 	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
-	// 验证用户名和密码
-	var user UserDTO
-	query := `SELECT id, username FROM iacc_user WHERE username = $1 AND password = $2`
-	err := h.db.GetContext(c.Request.Context(), &user, query, req.Username, req.Password)
+	// 查询用户（用户名唯一）
+	var user struct {
+		ID        string         `db:"id"`
+		Username  string         `db:"username"`
+		Password  string         `db:"password"`
+		Phone     sql.NullString `db:"phone"`
+		Profile   interface{}    `db:"profile"`
+		CreatedAt time.Time      `db:"created_at"`
+		UpdatedAt time.Time      `db:"updated_at"`
+	}
+	query := `SELECT id, username, password, phone, profile, created_at, updated_at FROM iacc_user WHERE username = $1`
+	err := h.db.GetContext(c.Request.Context(), &user, query, req.Username)
 	if err != nil {
-		h.logger.Info("验证用户名和密码出错", zap.Error(err))
+		if err == sql.ErrNoRows {
+			pkgs.Error(c, http.StatusUnauthorized, "用户名或密码错误")
+			return
+		}
+		h.logger.Error("查询用户失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "登录失败")
+		return
+	}
+	// 简单密码校验（后续可引入加密）
+	if user.Password != req.Password {
 		pkgs.Error(c, http.StatusUnauthorized, "用户名或密码错误")
 		return
 	}
 
-	// 生成访问令牌
-	accessClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"exp":     time.Now().Add(h.config.JWT.AccessTokenExpire).Unix(),
-		"iat":     time.Now().Unix(),
-	}
-	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	accessToken, err := h.generateToken(user.ID, h.config.JWT.AccessTokenExpire)
 	if err != nil {
 		h.logger.Error("生成访问令牌失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "生成访问令牌失败")
+		pkgs.Error(c, http.StatusInternalServerError, "登录失败")
 		return
 	}
-
-	// 生成刷新令牌
-	refreshClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"exp":     time.Now().Add(h.config.JWT.RefreshTokenExpire).Unix(),
-		"iat":     time.Now().Unix(),
-	}
-	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	refreshToken, err := h.generateToken(user.ID, h.config.JWT.RefreshTokenExpire)
 	if err != nil {
 		h.logger.Error("生成刷新令牌失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "生成刷新令牌失败")
+		pkgs.Error(c, http.StatusInternalServerError, "登录失败")
 		return
 	}
-
-	expiresAt := time.Now().Add(h.config.JWT.AccessTokenExpire)
-
-	// 返回结果
-	response := LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    expiresAt,
-		User:         user,
-	}
-	pkgs.Success(c, response)
+	pkgs.Success(c, LoginRes{AccessToken: accessToken, RefreshToken: refreshToken, ExpiresIn: int64(h.config.JWT.AccessTokenExpire.Seconds())})
 }
 
-// RefreshToken 刷新token
-//
-//	@Summary  刷新token
-//	@Description  刷新访问令牌
-//	@Tags   auth
-//	@Accept   json
-//	@Produce  json
-//	@Param    request body  RefreshTokenRequest true  "刷新令牌请求参数"
-//	@Success  200   {object}  pkgs.Response{data=RefreshTokenResponse}  "刷新成功，返回新的访问令牌等信息"
-//	@Failure  400   {object}  pkgs.Response               "请求参数错误"
-//	@Failure  401   {object}  pkgs.Response               "无效的刷新令牌"
-//	@Failure  500   {object}  pkgs.Response               "服务器内部错误"
-//	@Router   /auth/refresh [post]
+// RefreshToken 刷新访问令牌
+// @Summary 刷新访问令牌
+// @Description 通过刷新令牌获取新的访问令牌
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body RefreshTokenReq true "刷新令牌请求参数"
+// @Success 200 {object} pkgs.Response{data=RefreshTokenRes} "刷新成功"
+// @Failure 400 {object} pkgs.Response "请求参数错误"
+// @Failure 401 {object} pkgs.Response "刷新令牌无效"
+// @Failure 500 {object} pkgs.Response "服务器内部错误"
+// @Router /auth/refresh-token [post]
 func (h *Handler) RefreshToken(c *gin.Context) {
-	// 绑定请求参数
-	var req RefreshTokenRequest
+	var req RefreshTokenReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		pkgs.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	// 验证请求参数
 	if err := h.validator.Validate(c, &req); err != nil {
 		return
 	}
 
-	// 验证刷新令牌
+	// 解析刷新 token
 	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrTokenSignatureInvalid
+		}
 		return []byte(h.config.JWT.Secret), nil
 	})
-
 	if err != nil || !token.Valid {
-		pkgs.Error(c, http.StatusUnauthorized, "无效的刷新令牌")
+		pkgs.Error(c, http.StatusUnauthorized, "刷新令牌无效")
 		return
 	}
-
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		pkgs.Error(c, http.StatusUnauthorized, "无效的刷新令牌声明")
+		pkgs.Error(c, http.StatusUnauthorized, "刷新令牌无效")
 		return
 	}
-	userID := claims["user_id"].(string)
-
-	// 生成新的访问令牌
-	accessClaims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(h.config.JWT.AccessTokenExpire).Unix(),
-		"iat":     time.Now().Unix(),
+	userID, _ := claims["user_id"].(string)
+	if userID == "" {
+		pkgs.Error(c, http.StatusUnauthorized, "刷新令牌无效")
+		return
 	}
-	accessTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessToken, err := accessTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	accessToken, err := h.generateToken(userID, h.config.JWT.AccessTokenExpire)
 	if err != nil {
 		h.logger.Error("生成访问令牌失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "生成访问令牌失败")
+		pkgs.Error(c, http.StatusInternalServerError, "刷新失败")
 		return
 	}
-
-	// 生成新的刷新令牌
-	refreshClaims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(h.config.JWT.RefreshTokenExpire).Unix(),
-		"iat":     time.Now().Unix(),
-	}
-	refreshTokenJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshToken, err := refreshTokenJwt.SignedString([]byte(h.config.JWT.Secret))
+	newRefreshToken, err := h.generateToken(userID, h.config.JWT.RefreshTokenExpire)
 	if err != nil {
 		h.logger.Error("生成刷新令牌失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "生成刷新令牌失败")
+		pkgs.Error(c, http.StatusInternalServerError, "刷新失败")
 		return
 	}
-
-	expiresAt := time.Now().Add(h.config.JWT.AccessTokenExpire)
-
-	// 返回结果
-	response := RefreshTokenResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresAt:    expiresAt,
-	}
-	pkgs.Success(c, response)
+	pkgs.Success(c, RefreshTokenRes{AccessToken: accessToken, RefreshToken: newRefreshToken, ExpiresIn: int64(h.config.JWT.AccessTokenExpire.Seconds())})
 }
 
-// GetUserInfo 获取当前用户信息
-//
-//	@Summary  获取当前用户信息
-//	@Description  获取当前登录用户的信息
-//	@Tags   auth
-//	@Accept   json
-//	@Produce  json
-//	@Success  200 {object}  pkgs.Response{data=UserInfoResponse}  "获取成功，返回用户信息"
-//	@Failure  401 {object}  pkgs.Response             "未授权"
-//	@Failure  500 {object}  pkgs.Response             "服务器内部错误"
-//	@Router   /auth/me [get]
-func (h *Handler) GetMe(c *gin.Context) {
-	// 从上下文中获取用户ID
-	userID, exists := c.Get("user_id")
+// UserDetail 获取当前用户详情
+// @Summary 获取当前用户详情
+// @Description 返回用户基本信息、角色列表、权限列表
+// @Tags auth
+// @Produce json
+// @Success 200 {object} pkgs.Response{data=UserDetailRes} "成功"
+// @Failure 401 {object} pkgs.Response "未授权"
+// @Failure 404 {object} pkgs.Response "用户不存在"
+// @Failure 500 {object} pkgs.Response "服务器内部错误"
+// @Router /auth/user-detail [get]
+func (h *Handler) UserDetail(c *gin.Context) {
+	v, exists := c.Get("user_id")
 	if !exists {
-		pkgs.Error(c, http.StatusUnauthorized, "上下文中未找到用户ID")
+		pkgs.Error(c, http.StatusUnauthorized, "未授权")
 		return
 	}
-	h.logger.Info("GetProfile user_id", zap.Any("user_id", userID))
+	userID, _ := v.(string)
+	if userID == "" {
+		pkgs.Error(c, http.StatusUnauthorized, "未授权")
+		return
+	}
 
-	// 查询用户信息
-	var user UserInfoResponse
-	query := `SELECT id, created_at, updated_at, username, phone, profile FROM iacc_user WHERE id = $1`
-	err := h.db.GetContext(c.Request.Context(), &user, query, userID)
+	// 查询用户基本信息
+	var user struct {
+		ID        string         `db:"id"`
+		Username  string         `db:"username"`
+		Phone     sql.NullString `db:"phone"`
+		Profile   interface{}    `db:"profile"`
+		CreatedAt time.Time      `db:"created_at"`
+		UpdatedAt time.Time      `db:"updated_at"`
+	}
+	queryUser := `SELECT id, username, phone, profile, created_at, updated_at FROM iacc_user WHERE id = $1`
+	err := h.db.GetContext(c.Request.Context(), &user, queryUser, userID)
 	if err != nil {
-		h.logger.Error("获取用户信息失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "获取用户信息失败")
+		if err == sql.ErrNoRows {
+			pkgs.Error(c, http.StatusNotFound, "用户不存在")
+			return
+		}
+		h.logger.Error("查询用户失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
 
-	// 查询用户角色
-	var roles []RoleDTO
-	query = `SELECT r.id, r.name, r.description 
-           FROM iacc_role r 
-           JOIN iacc_user_role ur ON r.id = ur.role_id 
-           WHERE ur.user_id = $1`
-	err = h.db.SelectContext(c.Request.Context(), &roles, query, userID)
-	if err != nil {
-		h.logger.Error("获取用户角色失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "获取用户角色失败")
+	// 查询角色列表
+	var roles []UserRoleRes
+	queryRoles := `SELECT r.id, r.name, r.description FROM iacc_role r INNER JOIN iacc_user_role ur ON r.id = ur.role_id WHERE ur.user_id = $1`
+	if err = h.db.SelectContext(c.Request.Context(), &roles, queryRoles, userID); err != nil {
+		h.logger.Error("查询角色失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询失败")
 		return
 	}
-	user.Roles = roles
 
-	// 返回结果
-	pkgs.Success(c, user)
+	// 查询权限列表
+	var perms []struct {
+		ID       string `db:"id"`
+		Name     string `db:"name"`
+		Type     string `db:"type"`
+		Metadata struct {
+			Path   *string `json:"path"`
+			Method *string `json:"method"`
+			Code   *string `json:"code"`
+		} `db:"metadata"`
+	}
+	queryPerms := `SELECT p.id, p.name, p.type, p.metadata FROM iacc_permission p INNER JOIN iacc_role_permission rp ON p.id = rp.permission_id INNER JOIN iacc_user_role ur ON rp.role_id = ur.role_id WHERE ur.user_id = $1`
+	if err = h.db.SelectContext(c.Request.Context(), &perms, queryPerms, userID); err != nil {
+		h.logger.Error("查询权限失败", zap.Error(err))
+		pkgs.Error(c, http.StatusInternalServerError, "查询失败")
+		return
+	}
+	// 去重权限（可能多角色拥有同一权限）
+	permMap := map[string]UserPermRes{}
+	for _, p := range perms {
+		code := ""
+		path := ""
+		method := ""
+		if p.Metadata.Code != nil {
+			code = *p.Metadata.Code
+		}
+		if p.Metadata.Path != nil {
+			path = *p.Metadata.Path
+		}
+		if p.Metadata.Method != nil {
+			method = *p.Metadata.Method
+		}
+		if _, ok := permMap[p.ID]; !ok {
+			permMap[p.ID] = UserPermRes{ID: p.ID, Name: p.Name, Type: p.Type, Code: code, Path: path, Method: method}
+		}
+	}
+	var permList []UserPermRes
+	for _, v := range permMap {
+		permList = append(permList, v)
+	}
+
+	res := UserDetailRes{
+		ID:          user.ID,
+		Username:    user.Username,
+		Phone:       user.Phone.String,
+		Profile:     user.Profile,
+		Roles:       roles,
+		Permissions: permList,
+		CreatedAt:   user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+	}
+	pkgs.Success(c, res)
 }
 
-// AssignRole 分配角色
-//
-//	@Summary  分配角色
-//	@Description  为用户分配角色
-//	@Tags   auth
-//	@Accept   json
-//	@Produce  json
-//	@Param    request body  AssignRoleRequest true  "分配角色请求参数"
-//	@Success  200   {object}  pkgs.Response{data=string}  "分配成功，返回用户角色关联ID"
-//	@Failure  400   {object}  pkgs.Response       "请求参数错误"
-//	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
-//	@Router   /auth/assign-role [post]
-func (h *Handler) AssignRole(c *gin.Context) {
-	// 绑定请求参数
-	var req AssignRoleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, err.Error())
-		return
-	}
+// GetMe 兼容路由接口，内部复用 UserDetail 逻辑
+// @Summary 当前用户详情
+// @Description 返回当前登录用户的信息、角色和权限列表
+// @Tags auth
+// @Produce json
+// @Success 200 {object} pkgs.Response{data=UserDetailRes} "成功"
+// @Router /auth/me [get]
 
-	// 验证请求参数
-	if err := h.validator.Validate(c, &req); err != nil {
-		return
+// generateToken 生成 JWT 令牌
+func (h *Handler) generateToken(userID string, expire time.Duration) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(expire).Unix(),
+		"iat":     time.Now().Unix(),
 	}
-
-	// 验证用户ID和角色ID是否为有效的UUID
-	if _, err := uuid.Parse(req.UserID); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, "无效的用户ID")
-		return
-	}
-	if _, err := uuid.Parse(req.RoleID); err != nil {
-		pkgs.Error(c, http.StatusBadRequest, "无效的角色ID")
-		return
-	}
-
-	// 检查用户是否存在
-	var userCount int
-	userQuery := `SELECT COUNT(*) FROM iacc_user WHERE id = $1`
-	err := h.db.GetContext(c.Request.Context(), &userCount, userQuery, req.UserID)
-	if err != nil {
-		h.logger.Error("检查用户存在性失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
-		return
-	}
-	if userCount == 0 {
-		pkgs.Error(c, http.StatusNotFound, "用户不存在")
-		return
-	}
-
-	// 检查角色是否存在
-	var roleCount int
-	roleQuery := `SELECT COUNT(*) FROM iacc_role WHERE id = $1`
-	err = h.db.GetContext(c.Request.Context(), &roleCount, roleQuery, req.RoleID)
-	if err != nil {
-		h.logger.Error("检查角色存在性失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
-		return
-	}
-	if roleCount == 0 {
-		pkgs.Error(c, http.StatusNotFound, "角色不存在")
-		return
-	}
-
-	// 检查用户角色关联是否已存在
-	var userRoleCount int
-	userRoleQuery := `SELECT COUNT(*) FROM iacc_user_role WHERE user_id = $1 AND role_id = $2`
-	err = h.db.GetContext(c.Request.Context(), &userRoleCount, userRoleQuery, req.UserID, req.RoleID)
-	if err != nil {
-		h.logger.Error("检查用户角色存在性失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
-		return
-	}
-	if userRoleCount > 0 {
-		pkgs.Error(c, http.StatusBadRequest, "用户角色已存在")
-		return
-	}
-
-	// 创建用户角色关联实体
-	id := uuid.Must(uuid.NewV7()).String()
-	now := time.Now()
-	userRole := map[string]interface{}{
-		"id":         id,
-		"created_at": now,
-		"updated_at": now,
-		"user_id":    req.UserID,
-		"role_id":    req.RoleID,
-	}
-
-	// 数据库操作
-	query := `INSERT INTO iacc_user_role (id, created_at, updated_at, user_id, role_id) 
-            VALUES (:id, :created_at, :updated_at, :user_id, :role_id)`
-	_, err = h.db.NamedExecContext(c.Request.Context(), query, userRole)
-	if err != nil {
-		h.logger.Error("为用户分配角色失败", zap.Error(err))
-		pkgs.Error(c, http.StatusInternalServerError, "分配角色失败")
-		return
-	}
-
-	// 返回结果
-	pkgs.Success(c, id)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(h.config.JWT.Secret))
 }
