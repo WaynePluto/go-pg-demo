@@ -15,9 +15,6 @@ type Metadata struct {
 
 // Value 实现 driver.Valuer 接口，用于将Metadata类型正确存储到数据库中
 func (p Metadata) Value() (driver.Value, error) {
-	if p.Path == nil && p.Method == nil {
-		return nil, nil
-	}
 	return json.Marshal(p)
 }
 
@@ -49,7 +46,7 @@ type PermissionEntity struct {
 type CreatePermissionReq struct {
 	Name     string   `json:"name" validate:"required" label:"权限名称"`
 	Type     string   `json:"type" validate:"required" label:"权限类型"`
-	Metadata Metadata `json:"metadata,omitempty" label:"权限元数据"`
+	Metadata Metadata `json:"metadata" label:"权限元数据"`
 }
 
 // 更新权限的请求体

@@ -1,6 +1,6 @@
 # Development configuration file
 server:
-  port: 8080
+  port: 3000
   mode: debug # debug, release, test
 
 database:
@@ -21,8 +21,8 @@ log:
 
 jwt:
   secret: my-secret-key
-  access_token_expire: 24h
-  refresh_token_expire: 720h
+  access_token_expire: 5m
+  refresh_token_expire: 24h
 
 app:
   name: go-pg-demo
