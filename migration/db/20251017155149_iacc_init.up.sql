@@ -110,7 +110,4 @@ BEGIN
     END IF;
 END $$;
 
--- 创建初始admin用户，密码为明文0000
-INSERT INTO "iacc_user" (username, password) 
-VALUES ('admin', '0000')
-ON CONFLICT (username) DO NOTHING;
+

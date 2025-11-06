@@ -21,11 +21,12 @@ func NewGin() *gin.Engine {
 }
 
 type App struct {
-	Server   *gin.Engine
-	Logger   *zap.Logger
-	Conf     *pkgs.Config
-	DB       *sqlx.DB
-	V1Router *v1.Router
+	Server    *gin.Engine
+	Logger    *zap.Logger
+	Conf      *pkgs.Config
+	DB        *sqlx.DB
+	V1Router  *v1.Router
+	Scheduler *pkgs.Scheduler
 }
 
 func NewApp(
@@ -38,6 +39,7 @@ func NewApp(
 	recoveryMiddleware middlewares.RecoveryMiddleware,
 	permissionMiddleware middlewares.PermissionMiddleware,
 	v1Router *v1.Router,
+	scheduler *pkgs.Scheduler,
 ) (*App, error) {
 
 	// 数据库迁移
@@ -58,11 +60,12 @@ func NewApp(
 	}
 
 	return &App{
-		Server:   server,
-		Logger:   logger,
-		Conf:     conf,
-		DB:       db,
-		V1Router: v1Router,
+		Server:    server,
+		Logger:    logger,
+		Conf:      conf,
+		DB:        db,
+		V1Router:  v1Router,
+		Scheduler: scheduler,
 	}, nil
 }
 
@@ -73,6 +76,11 @@ func (a *App) Run() error {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
 	a.Logger.Info("HTTP server is starting...", zap.String("addr", addr))
+
+	// 启动定时任务
+	if a.Scheduler != nil {
+		a.Scheduler.Start()
+	}
 
 	return a.Server.Run(addr)
 }

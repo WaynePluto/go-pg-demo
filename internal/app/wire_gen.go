@@ -48,7 +48,8 @@ func InitializeApp() (*App, func(), error) {
 	authHandler := auth.NewAuthHandler(db, logger, requestValidator, config)
 	permissionHandler := permission.NewPermissionHandler(db, logger, requestValidator)
 	router := v1.NewRouter(engine, handler, userHandler, roleHandler, authHandler, permissionHandler)
-	app, err := NewApp(engine, logger, config, db, loggerMiddleware, authMiddleware, recoveryMiddleware, permissionMiddleware, router)
+	scheduler := pkgs.NewScheduler(logger, db)
+	app, err := NewApp(engine, logger, config, db, loggerMiddleware, authMiddleware, recoveryMiddleware, permissionMiddleware, router, scheduler)
 	if err != nil {
 		return nil, nil, err
 	}
