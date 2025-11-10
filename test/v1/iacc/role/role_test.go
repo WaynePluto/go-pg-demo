@@ -82,7 +82,7 @@ func TestCreateRole(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		description := "测试角色描述"
-		createReqBody := role.CreateRoleReq{
+		createReqBody := role.CreateReq{
 			Name:        "新的测试角色",
 			Description: &description,
 		}
@@ -124,7 +124,7 @@ func TestCreateRole(t *testing.T) {
 
 	t.Run("缺少必填字段", func(t *testing.T) {
 		// 准备
-		createReqBody := role.CreateRoleReq{
+		createReqBody := role.CreateReq{
 			// 故意不提供Name字段
 		}
 
@@ -240,7 +240,8 @@ func TestUpdateRole(t *testing.T) {
 		entity := setupTestRole(t, "待更新角色", &description)
 
 		newDescription := "更新后的描述"
-		updateReqBody := role.UpdateRoleReq{
+		updateReqBody := role.UpdateByIDReq{
+			ID:          entity.ID,
 			Description: &newDescription,
 		}
 
@@ -273,7 +274,8 @@ func TestUpdateRole(t *testing.T) {
 		// 准备
 		fakeID := uuid.New().String()
 		newDescription := "更新后的描述"
-		updateReqBody := role.UpdateRoleReq{
+		updateReqBody := role.UpdateByIDReq{
+			ID:          fakeID,
 			Description: &newDescription,
 		}
 
@@ -297,7 +299,7 @@ func TestUpdateRole(t *testing.T) {
 		var resp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "响应体应该能正确解析为Response结构体")
-		assert.Nil(t, resp.Data, "返回数据应该为空")
+		assert.Equal(t, float64(0), resp.Data, "应该影响零行数据")
 	})
 }
 
@@ -473,10 +475,10 @@ func TestAssignPermission(t *testing.T) {
 
 		// 创建测试权限并关联到角色
 		perm := setupTestPermission(t, "权限A")
-		
+
 		// 手动插入关联记录
-		_, err := testDB.ExecContext(context.Background(), 
-			"INSERT INTO iacc_role_permission (role_id, permission_id) VALUES ($1, $2)", 
+		_, err := testDB.ExecContext(context.Background(),
+			"INSERT INTO iacc_role_permission (role_id, permission_id) VALUES ($1, $2)",
 			entity.ID, perm.ID)
 		assert.NoError(t, err, "应该能成功插入权限关联")
 
@@ -488,7 +490,7 @@ func TestAssignPermission(t *testing.T) {
 		bodyBytes, _ := json.Marshal(assignReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/role/"+entity.ID+"/permission", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		// 获取token
