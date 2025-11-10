@@ -108,7 +108,7 @@ func TestCreatePermission(t *testing.T) {
 		var createResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &createResp)
 		assert.NoError(t, err, "解析响应体不应出错")
-		assert.Equal(t, 200, createResp.Code, "响应码应该是 200")
+		assert.Equal(t, http.StatusOK, createResp.Code, "响应码应该是 200")
 
 		createdID, ok := createResp.Data.(string)
 		assert.True(t, ok, "响应数据应该是字符串类型的 ID")
@@ -144,7 +144,7 @@ func TestCreatePermission(t *testing.T) {
 		testRouter.ServeHTTP(w, req)
 
 		// 断言
-		assert.Equal(t, http.StatusOK, w.Code, "处理器应返回 200 状态码，但在响应体中包含错误码")
+		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是 200")
 		var errResp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &errResp)
 		assert.NoError(t, err, "解析错误响应体不应出错")
@@ -171,21 +171,21 @@ func TestGetPermission(t *testing.T) {
 
 		// 断言
 		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是 200")
-		type PermissionResponse struct {
-			Code int                      `json:"code"`
-			Data permission.PermissionRes `json:"data"`
-		}
-		var resp PermissionResponse
+		var resp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
-		assert.Equal(t, entity.Name, resp.Data.Name, "获取到的权限名称应与创建时一致")
-		assert.Equal(t, entity.Type, resp.Data.Type, "获取到的权限类型应与创建时一致")
+
+		// 使用 map 来灵活处理响应数据
+		data, ok := resp.Data.(map[string]interface{})
+		assert.True(t, ok, "响应数据应该是一个 map")
+		assert.Equal(t, entity.Name, data["name"], "获取到的权限名称应与创建时一致")
+		assert.Equal(t, entity.Type, data["type"], "获取到的权限类型应与创建时一致")
 	})
 
 	t.Run("未找到", func(t *testing.T) {
 		// 准备
-		nonExistentID := "a-b-c-d-e"
+		nonExistentID := "123e4567-e89b-12d3-a456-426614174000" // 使用有效的UUID格式但数据库中不存在的ID
 
 		// 执行
 		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/"+nonExistentID, nil)
@@ -213,8 +213,8 @@ func TestUpdatePermission(t *testing.T) {
 		// 准备
 		entity := setupTestPermission(t, "测试权限-Update")
 		updateName := "更新后的权限名称"
-		updateReqBody := permission.UpdatePermissionReq{
-			Name: &updateName,
+		updateReqBody := map[string]any{
+			"name": updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
 		req, _ := http.NewRequest(http.MethodPut, "/v1/permission/"+entity.ID, bytes.NewBuffer(bodyBytes))
@@ -235,6 +235,7 @@ func TestUpdatePermission(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &updateResp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, updateResp.Code, "响应码应该是 200")
+		assert.Equal(t, int64(1), int64(updateResp.Data.(float64)), "应影响 1 行")
 
 		// 验证更新
 		var updatedPermission permission.PermissionEntity
@@ -267,9 +268,7 @@ func TestDeletePermission(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &deleteResp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, deleteResp.Code, "响应码应该是 200")
-		affectedID, ok := deleteResp.Data.(float64)
-		assert.True(t, ok, "响应数据应该是数字")
-		assert.Equal(t, 1, int(affectedID), "应影响 1 行")
+		assert.Equal(t, int64(1), int64(deleteResp.Data.(float64)), "应影响 1 行")
 
 		// 验证删除
 		var count int
@@ -298,15 +297,17 @@ func TestQueryPermissionList(t *testing.T) {
 
 		// 断言
 		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是 200")
-		type PermissionListResponse struct {
-			Code int                          `json:"code"`
-			Data permission.PermissionListRes `json:"data"`
-		}
-		var resp PermissionListResponse
+		var resp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
-		assert.GreaterOrEqual(t, resp.Data.Total, int64(2), "总权限数应至少为 2")
+		
+		// 使用 map 来灵活处理响应数据
+		data, ok := resp.Data.(map[string]interface{})
+		assert.True(t, ok, "响应数据应该是一个 map")
+		total, ok := data["total"]
+		assert.True(t, ok, "响应数据应该包含 total 字段")
+		assert.GreaterOrEqual(t, int64(total.(float64)), int64(2), "总权限数应至少为 2")
 	})
 }
 
