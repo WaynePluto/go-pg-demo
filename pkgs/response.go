@@ -30,3 +30,12 @@ func Error(c *gin.Context, code int, msg string) {
 		Data: nil,
 	})
 }
+
+// 处理错误响应
+func HandleError(c *gin.Context, err error) {
+	if apiErr, ok := err.(*ApiError); ok {
+		Error(c, apiErr.Code, apiErr.Message)
+	} else {
+		Error(c, http.StatusInternalServerError, "服务器内部错误")
+	}
+}

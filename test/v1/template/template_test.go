@@ -82,7 +82,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateTemplateReq{
+		createReqBody := template.CreateOneReq{
 			Name: "新的测试模板",
 			Num:  &num,
 		}
@@ -119,7 +119,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateTemplateReq{
+		createReqBody := template.CreateOneReq{
 			Num: &num, // 缺少名称
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
@@ -147,7 +147,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - Num 超出范围", func(t *testing.T) {
 		// 准备
 		num := 0 // 无效的 Num
-		createReqBody := template.CreateTemplateReq{
+		createReqBody := template.CreateOneReq{
 			Name: "无效Num模板",
 			Num:  &num,
 		}
@@ -206,7 +206,7 @@ func TestGetByIdTemplate(t *testing.T) {
 		}
 	})
 
-	t.Run("未找到", func(t *testing.T) {
+	t.Run("错误的ID", func(t *testing.T) {
 		// 准备
 		nonExistentID := "a-b-c-d-e"
 
@@ -216,6 +216,22 @@ func TestGetByIdTemplate(t *testing.T) {
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
+		// 断言
+		assert.Equal(t, http.StatusOK, w.Code, "处理器应返回 200 状态码，但在响应体中包含错误码")
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err, "解析错误响应体不应出错")
+		assert.Equal(t, http.StatusBadRequest, resp.Code, "响应码应该是 400")
+		assert.Equal(t, "模板ID必须是一个有效的UUID", resp.Msg, "错误消息应为 '模板ID必须是一个有效的UUID'")
+	})
+
+	t.Run("未找到", func(t *testing.T) {
+		// 准备
+		nonExistentID := "123e4567-e89b-12d3-a456-426614174000"
+		// 执行
+		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+nonExistentID, nil)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
 		// 断言
 		assert.Equal(t, http.StatusOK, w.Code, "处理器应返回 200 状态码，但在响应体中包含错误码")
 		var resp pkgs.Response
@@ -231,7 +247,7 @@ func TestUpdateByIdTemplate(t *testing.T) {
 		// 准备
 		entity := setupTestTemplate(t)
 		updateName := "更新后的名称"
-		updateReqBody := template.UpdateTemplateReq{
+		updateReqBody := template.UpdateOneReq{
 			Name: &updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
@@ -267,7 +283,7 @@ func TestUpdateByIdTemplate(t *testing.T) {
 		// 准备
 		entity := setupTestTemplate(t)
 		invalidNum := 0
-		updateReqBody := template.UpdateTemplateReq{
+		updateReqBody := template.UpdateOneReq{
 			Num: &invalidNum,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
@@ -325,8 +341,8 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num1, num2 := 200, 300
-		batchCreateReq := template.CreateTemplatesReq{
-			Templates: []template.CreateTemplateReq{
+		batchCreateReq := template.BatchCreateReq{
+			Templates: []template.CreateOneReq{
 				{Name: "批量模板 1", Num: &num1},
 				{Name: "批量模板 2", Num: &num2},
 			},
@@ -367,8 +383,8 @@ func TestBatchCreateTemplates(t *testing.T) {
 
 	t.Run("无效输入 - 空列表", func(t *testing.T) {
 		// 准备
-		batchCreateReq := template.CreateTemplatesReq{
-			Templates: []template.CreateTemplateReq{},
+		batchCreateReq := template.BatchCreateReq{
+			Templates: []template.CreateOneReq{},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-create", bytes.NewBuffer(bodyBytes))
@@ -395,8 +411,8 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("无效输入 - 列表中有无效数据", func(t *testing.T) {
 		// 准备
 		num := 100
-		batchCreateReq := template.CreateTemplatesReq{
-			Templates: []template.CreateTemplateReq{
+		batchCreateReq := template.BatchCreateReq{
+			Templates: []template.CreateOneReq{
 				{Name: "有效模板", Num: &num},
 				{Num: &num}, // 无效模板，缺少 Name
 			},
