@@ -24,9 +24,11 @@ type RoleHandler interface {
 // 用户管理处理器接口
 type UserHandler interface {
 	Create(c *gin.Context)
+	BatchCreate(c *gin.Context)
 	GetByID(c *gin.Context)
 	UpdateByID(c *gin.Context)
 	DeleteByID(c *gin.Context)
+	BatchDelete(c *gin.Context)
 	QueryList(c *gin.Context)
 	AssignRole(c *gin.Context)
 }

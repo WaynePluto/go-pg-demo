@@ -84,9 +84,11 @@ func (r *Router) RegisterIACCUser() {
 	users := r.RouterGroup.Group("/user")
 	{
 		users.POST("", r.UserHandler.Create)
+		users.POST("/batch-create", r.UserHandler.BatchCreate)
 		users.GET("/:id", r.UserHandler.GetByID)
 		users.PUT("/:id", r.UserHandler.UpdateByID)
 		users.DELETE("/:id", r.UserHandler.DeleteByID)
+		users.POST("/batch-delete", r.UserHandler.BatchDelete)
 		users.GET("/list", r.UserHandler.QueryList)
 		users.POST("/:id/role", r.UserHandler.AssignRole)
 	}

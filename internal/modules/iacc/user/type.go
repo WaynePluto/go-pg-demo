@@ -30,7 +30,7 @@ func (p *Profile) Scan(value interface{}) error {
 	return json.Unmarshal(b, &p)
 }
 
-// 数据库表 user 的表结构
+// 数据库表 iacc_user 的表结构
 type UserEntity struct {
 	ID        string    `db:"id" label:"用户ID"`
 	CreatedAt time.Time `db:"created_at" label:"创建时间"`
@@ -42,45 +42,96 @@ type UserEntity struct {
 }
 
 // 创建用户的请求 DTO
-type CreateUserReq struct {
+type CreateReq struct {
 	Username string  `json:"username" validate:"required" label:"用户名"`
 	Phone    string  `json:"phone" validate:"required,min=11,max=11" label:"手机号"`
 	Password string  `json:"password" validate:"required" label:"密码"`
 	Profile  Profile `json:"profile,omitempty" label:"个人信息"`
 }
 
-// 更新用户的请求 DTO
-type UpdateUserReq struct {
-	// 密码，前端进行MD5加密
-	Password *string `json:"password,omitempty" validate:"omitempty" label:"密码"`
-	// 个人信息
-	Profile Profile `json:"profile,omitempty" label:"个人信息"`
+// 创建用户的响应 DTO
+type CreateRes string
+
+// 批量创建用户的请求体
+type BatchCreateReq struct {
+	Users []CreateReq `json:"users" validate:"required,min=1,dive" label:"用户列表"`
 }
 
-// 查询用户的请求 DTO
-type QueryUserReq struct {
-	Page     int    `form:"page,default=1" validate:"min=1" label:"页码"`
-	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100" label:"每页大小"`
-	Phone    string `form:"phone,omitempty" validate:"omitempty" label:"手机号"`
+// 批量创建用户的响应体
+type BatchCreateRes []string
+
+// 根据ID获取用户的参数
+type GetByIDReq struct {
+	ID string `uri:"id" validate:"required,uuid" label:"用户ID"`
 }
 
-// 给用户分配角色的请求 DTO
-type AssignRolesToUserReq struct {
-	// 角色ID列表
-	RoleIDs []string `json:"role_ids" validate:"required,min=1,dive,uuid" label:"角色ID列表"`
-}
-
-// 用户信息的响应 DTO
-type UserRes struct {
+// 根据ID获取用户的响应体
+type GetByIDRes struct {
 	ID        string  `json:"id" label:"用户ID"`
+	Username  string  `json:"username" label:"用户名"`
 	Phone     string  `json:"phone" label:"手机号"`
 	Profile   Profile `json:"profile,omitempty" label:"个人信息"`
 	CreatedAt string  `json:"created_at" label:"创建时间"`
 	UpdatedAt string  `json:"updated_at" label:"更新时间"`
 }
 
-// UserListRes 用户列表的响应 DTO
-type UserListRes struct {
-	List  []UserRes `json:"list"`
-	Total int64     `json:"total"`
+// 更新用户的请求体
+type UpdateByIDReq struct {
+	ID       string   `uri:"id" validate:"required,uuid" label:"用户ID"`
+	Username *string  `json:"username,omitempty" validate:"omitempty" label:"用户名"`
+	Phone    *string  `json:"phone,omitempty" validate:"omitempty,min=11,max=11" label:"手机号"`
+	Password *string  `json:"password,omitempty" validate:"omitempty" label:"密码"`
+	Profile  *Profile `json:"profile,omitempty" label:"个人信息"`
 }
+
+// 更新用户的响应体
+type UpdateByIDRes = int64
+
+// 根据ID删除用户的请求参数
+type DeleteByIDReq struct {
+	ID string `uri:"id" binding:"required,uuid" label:"用户ID"`
+}
+
+// 根据ID删除用户的响应
+type DeleteByIDRes = int64
+
+// 批量删除用户请求参数
+type DeleteUsersReq struct {
+	IDs []string `json:"ids" validate:"required,min=1,dive,uuid" label:"用户ID列表"`
+}
+
+// 批量删除用户响应
+type BatchDeleteRes = int64
+
+// 查询用户的请求体
+type QueryListReq struct {
+	Page     int    `form:"page,default=1" validate:"min=1" label:"页码"`
+	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100" label:"每页大小"`
+	Phone    string `form:"phone,omitempty" validate:"omitempty" label:"手机号"`
+	Username string `form:"username,omitempty" validate:"omitempty" label:"用户名"`
+}
+
+// 用户响应
+type UserItem struct {
+	ID        string  `json:"id" label:"用户ID"`
+	Username  string  `json:"username" label:"用户名"`
+	Phone     string  `json:"phone" label:"手机号"`
+	Profile   Profile `json:"profile,omitempty" label:"个人信息"`
+	CreatedAt string  `json:"created_at" label:"创建时间"`
+	UpdatedAt string  `json:"updated_at" label:"更新时间"`
+}
+
+// 查询用户的响应体
+type QueryListRes struct {
+	List  []UserItem `json:"list"`
+	Total int64      `json:"total"`
+}
+
+// 给用户分配角色的请求 DTO
+type AssignRolesReq struct {
+	ID      string   `uri:"id" validate:"required,uuid" label:"用户ID"`
+	RoleIDs []string `json:"role_ids" validate:"required,min=1,dive,uuid" label:"角色ID列表"`
+}
+
+// 给用户分配角色的响应 DTO
+type AssignRolesRes = int64
