@@ -99,8 +99,8 @@ func TestPermissionMiddleware_Success_WithPermission_TemplateList(t *testing.T) 
 func TestPermissionMiddleware_Success_PathParamMatch(t *testing.T) {
 	tu := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 	_, token := tu.SetupUserWithPermissions([]string{"GET /v1/role/:id"})
-	// 访问一个具体ID（这里使用任意UUID格式/字符串即可）
-	req, _ := http.NewRequest(http.MethodGet, "/v1/role/123456", nil)
+	// 访问一个具体ID（使用有效的UUID格式，但确保不存在）
+	req, _ := http.NewRequest(http.MethodGet, "/v1/role/550e8400-e29b-41d4-a716-446655440000", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	testRouter.ServeHTTP(w, req)
