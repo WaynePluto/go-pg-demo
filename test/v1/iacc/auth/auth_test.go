@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"go-pg-demo/internal/app"
+	"go-pg-demo/internal/modules/iacc/auth"
 	"go-pg-demo/pkgs"
 )
 
@@ -45,7 +46,7 @@ func TestAuthLogin(t *testing.T) {
 		// Arrange: 创建测试用户
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
-		reqBody := map[string]string{"username": u.Username, "password": u.Password}
+		reqBody := auth.LoginReq{Username: u.Username, Password: u.Password}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -68,7 +69,8 @@ func TestAuthLogin(t *testing.T) {
 	})
 
 	t.Run("缺少用户名", func(t *testing.T) {
-		bodyBytes, _ := json.Marshal(map[string]string{"password": "123456"})
+		reqBody := auth.LoginReq{Password: "123456"}
+		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -83,7 +85,8 @@ func TestAuthLogin(t *testing.T) {
 		// 创建正确用户但用错误密码
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
-		bodyBytes, _ := json.Marshal(map[string]string{"username": u.Username, "password": "wrong"})
+		reqBody := auth.LoginReq{Username: u.Username, Password: "wrong"}
+		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -95,7 +98,8 @@ func TestAuthLogin(t *testing.T) {
 	})
 
 	t.Run("用户不存在", func(t *testing.T) {
-		bodyBytes, _ := json.Marshal(map[string]string{"username": "not_exist_user", "password": "xxx"})
+		reqBody := auth.LoginReq{Username: "not_exist_user", Password: "xxx"}
+		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -113,8 +117,9 @@ func TestAuthRefreshToken(t *testing.T) {
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
 		// 先登录获取 refresh_token
-		loginBody, _ := json.Marshal(map[string]string{"username": u.Username, "password": u.Password})
-		loginReq, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(loginBody))
+		loginBody := auth.LoginReq{Username: u.Username, Password: u.Password}
+		loginBodyBytes, _ := json.Marshal(loginBody)
+		loginReq, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(loginBodyBytes))
 		loginReq.Header.Set("Content-Type", "application/json")
 		w1 := httptest.NewRecorder()
 		testRouter.ServeHTTP(w1, loginReq)
@@ -124,7 +129,8 @@ func TestAuthRefreshToken(t *testing.T) {
 		refreshToken := loginData["refresh_token"].(string)
 
 		// 使用 refresh_token 请求刷新
-		bodyBytes, _ := json.Marshal(map[string]string{"refresh_token": refreshToken})
+		refreshReq := auth.RefreshTokenReq{RefreshToken: refreshToken}
+		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -142,7 +148,8 @@ func TestAuthRefreshToken(t *testing.T) {
 		fakeClaims := jwt.MapClaims{"user_id": "some-user", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix()}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, fakeClaims)
 		badToken, _ := token.SignedString([]byte("wrong-secret"))
-		bodyBytes, _ := json.Marshal(map[string]string{"refresh_token": badToken})
+		refreshReq := auth.RefreshTokenReq{RefreshToken: badToken}
+		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -158,7 +165,8 @@ func TestAuthRefreshToken(t *testing.T) {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, fakeClaims)
 		// 使用正确 secret 但缺少 user_id
 		badToken, _ := token.SignedString([]byte("my-secret-key"))
-		bodyBytes, _ := json.Marshal(map[string]string{"refresh_token": badToken})
+		refreshReq := auth.RefreshTokenReq{RefreshToken: badToken}
+		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
