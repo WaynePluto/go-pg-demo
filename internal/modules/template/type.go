@@ -14,17 +14,17 @@ type TemplateEntity struct {
 }
 
 // 创建模板的请求 DTO
-type CreateOneReq struct {
+type CreateReq struct {
 	Name string `json:"name" validate:"required" label:"模板名称"`
 	Num  *int   `json:"num,omitempty" validate:"omitempty,min=1,max=1000" label:"模板数量"`
 }
 
 // 创建模板的响应 DTO
-type CreateOneRes string
+type CreateRes string
 
 // 批量创建模板的请求体
 type BatchCreateReq struct {
-	Templates []CreateOneReq `json:"templates" validate:"required,min=1,dive" label:"模板列表"`
+	Templates []CreateReq `json:"templates" validate:"required,min=1,dive" label:"模板列表"`
 }
 
 // 批量创建模板的响应体
@@ -45,18 +45,18 @@ type GetByIDRes struct {
 }
 
 // 更新模板的请求体
-type UpdateOneReq struct {
+type UpdateByIDReq struct {
 	ID   string  `uri:"id" validate:"required,uuid" label:"模板ID"`
 	Name *string `json:"name,omitempty" validate:"omitempty" label:"模板名称"`
 	Num  *int    `json:"num,omitempty" validate:"omitempty,min=1,max=1000" label:"模板数量"`
 }
 
 // 更新模板的响应体
-type UpdateOneRes struct{}
+type UpdateByIDRes = int64
 
 // 根据ID删除模板的请求参数
 type DeleteByIDReq struct {
-	ID string `uri:"id" binding:"required,uuid"`
+	ID string `uri:"id" binding:"required,uuid" label:"模板ID"`
 }
 
 // 根据ID删除模板的响应

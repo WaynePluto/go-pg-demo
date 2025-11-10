@@ -31,11 +31,21 @@ func Error(c *gin.Context, code int, msg string) {
 	})
 }
 
-// 处理错误响应
-func HandleError(c *gin.Context, err error) {
-	if apiErr, ok := err.(*ApiError); ok {
-		Error(c, apiErr.Code, apiErr.Message)
-	} else {
-		Error(c, http.StatusInternalServerError, "服务器内部错误")
+func HandleSuccess[T any](c *gin.Context) func(req T) (T, error) {
+	return func(req T) (T, error) {
+		Success(c, req)
+		return req, nil
+	}
+}
+
+func HandleError[T any](c *gin.Context) func(err error) (T, error) {
+	return func(err error) (T, error) {
+		if apiErr, ok := err.(*ApiError); ok {
+			Error(c, apiErr.Code, apiErr.Message)
+		} else {
+			Error(c, http.StatusInternalServerError, "服务器内部错误")
+		}
+		var req T
+		return req, err
 	}
 }

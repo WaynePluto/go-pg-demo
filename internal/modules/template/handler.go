@@ -46,25 +46,19 @@ func NewTemplateHandler(db *sqlx.DB, logger *zap.Logger, validator *pkgs.Request
 //	@Tags   template
 //	@Accept   json
 //	@Produce  json
-//	@Param    request body  CreateOneReq true  "创建模板请求参数"
-//	@Success  200   {object}  pkgs.Response{data=CreateOneRes}  "创建成功，返回模板ID"
+//	@Param    request body  CreateReq true  "创建模板请求参数"
+//	@Success  200   {object}  pkgs.Response{data=CreateRes}  "创建成功，返回模板ID"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /template [post]
 func (h *Handler) Create(c *gin.Context) {
 	result.Pipe2(
-		pkgs.BindJSON[CreateOneReq](c),
-		result.FlatMap(pkgs.ValidateV2[CreateOneReq](h.validator)),
+		pkgs.BindJSON[CreateReq](c),
+		result.FlatMap(pkgs.ValidateV2[CreateReq](h.validator)),
 		result.FlatMap(h.repository.Create(c)),
 	).Match(
-		func(id CreateOneRes) (CreateOneRes, error) {
-			pkgs.Success(c, id)
-			return id, nil
-		},
-		func(err error) (CreateOneRes, error) {
-			pkgs.HandleError(c, err)
-			return "", err
-		},
+		pkgs.HandleSuccess[CreateRes](c),
+		pkgs.HandleError[CreateRes](c),
 	)
 }
 
@@ -86,14 +80,8 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 		result.FlatMap(pkgs.ValidateV2[BatchCreateReq](h.validator)),
 		result.FlatMap(h.repository.BatchCreate(c)),
 	).Match(
-		func(ids BatchCreateRes) (BatchCreateRes, error) {
-			pkgs.Success(c, ids)
-			return ids, nil
-		},
-		func(err error) (BatchCreateRes, error) {
-			pkgs.HandleError(c, err)
-			return nil, err
-		},
+		pkgs.HandleSuccess[BatchCreateRes](c),
+		pkgs.HandleError[BatchCreateRes](c),
 	)
 }
 
@@ -105,7 +93,7 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    id  path  string  true  "模板ID"
-//	@Success  200 {object}  pkgs.Response{data=TemplateRes}  "获取成功，返回模板信息"
+//	@Success  200 {object}  pkgs.Response{data=GetByIDRes}  "获取成功，返回模板信息"
 //	@Failure  400 {object}  pkgs.Response           "请求参数错误"
 //	@Failure  404 {object}  pkgs.Response           "模板不存在"
 //	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
@@ -116,14 +104,8 @@ func (h *Handler) GetByID(c *gin.Context) {
 		result.FlatMap(pkgs.ValidateV2[GetByIDReq](h.validator)),
 		result.FlatMap(h.repository.GetByID(c)),
 	).Match(
-		func(res GetByIDRes) (GetByIDRes, error) {
-			pkgs.Success(c, res)
-			return res, nil
-		},
-		func(err error) (GetByIDRes, error) {
-			pkgs.HandleError(c, err)
-			return GetByIDRes{}, err
-		},
+		pkgs.HandleSuccess[GetByIDRes](c),
+		pkgs.HandleError[GetByIDRes](c),
 	)
 }
 
@@ -135,27 +117,20 @@ func (h *Handler) GetByID(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    id    path  string          true  "模板ID"
-//	@Param    request body  UpdateTemplateReq true  "更新模板请求参数"
-//	@Success  200   {object}  pkgs.Response       "更新成功"
+//	@Param    request body  UpdateByIDReq true  "更新模板请求参数"
+//	@Success  200   {object}  pkgs.Response{data=UpdateByIDRes}       "更新成功"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /template/{id} [put]
 func (h *Handler) UpdateByID(c *gin.Context) {
 	result.Pipe2(
-		pkgs.BindUriAndJSON[UpdateOneReq](c),
-		result.FlatMap(pkgs.ValidateV2[UpdateOneReq](h.validator)),
+		pkgs.BindUriAndJSON[UpdateByIDReq](c),
+		result.FlatMap(pkgs.ValidateV2[UpdateByIDReq](h.validator)),
 		result.FlatMap(h.repository.UpdateByID(c)),
-	).
-		Match(
-			func(res UpdateOneRes) (UpdateOneRes, error) {
-				pkgs.Success(c, res)
-				return res, nil
-			},
-			func(err error) (UpdateOneRes, error) {
-				pkgs.HandleError(c, err)
-				return UpdateOneRes{}, err
-			},
-		)
+	).Match(
+		pkgs.HandleSuccess[UpdateByIDRes](c),
+		pkgs.HandleError[UpdateByIDRes](c),
+	)
 }
 
 // DeleteByID 根据ID删除模板
@@ -166,7 +141,7 @@ func (h *Handler) UpdateByID(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    id  path  string  true  "模板ID"
-//	@Success  200 {object}  pkgs.Response{data=int64} "删除成功，返回影响行数"
+//	@Success  200 {object}  pkgs.Response{data=DeleteByIDRes} "删除成功，返回影响行数"
 //	@Failure  400 {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500 {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /template/{id} [delete]
@@ -176,14 +151,8 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 		result.FlatMap(pkgs.ValidateV2[DeleteByIDReq](h.validator)),
 		result.FlatMap(h.repository.DeleteByID(c)),
 	).Match(
-		func(res DeleteByIDRes) (DeleteByIDRes, error) {
-			pkgs.Success(c, res)
-			return res, nil
-		},
-		func(err error) (DeleteByIDRes, error) {
-			pkgs.HandleError(c, err)
-			return 0, err
-		},
+		pkgs.HandleSuccess[DeleteByIDRes](c),
+		pkgs.HandleError[DeleteByIDRes](c),
 	)
 }
 
@@ -195,7 +164,7 @@ func (h *Handler) DeleteByID(c *gin.Context) {
 //	@Accept   json
 //	@Produce  json
 //	@Param    request body  DeleteTemplatesReq  true  "批量删除模板请求参数"
-//	@Success  200   {object}  pkgs.Response{data=int64}       "删除成功，返回影响行数"
+//	@Success  200   {object}  pkgs.Response{data=BatchDeleteRes}       "删除成功，返回影响行数"
 //	@Failure  400   {object}  pkgs.Response       "请求参数错误"
 //	@Failure  500   {object}  pkgs.Response       "服务器内部错误"
 //	@Router   /template/batch-delete [post]
@@ -205,14 +174,8 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 		result.FlatMap(pkgs.ValidateV2[DeleteTemplatesReq](h.validator)),
 		result.FlatMap(h.repository.BatchDelete(c)),
 	).Match(
-		func(res BatchDeleteRes) (BatchDeleteRes, error) {
-			pkgs.Success(c, res)
-			return res, nil
-		},
-		func(err error) (BatchDeleteRes, error) {
-			pkgs.HandleError(c, err)
-			return 0, err
-		},
+		pkgs.HandleSuccess[BatchDeleteRes](c),
+		pkgs.HandleError[BatchDeleteRes](c),
 	)
 }
 
@@ -226,7 +189,7 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 //	@Param    page    query int   false "页码"  default(1)
 //	@Param    pageSize  query int   false "每页数量"  default(10)
 //	@Param    name    query string  false "模板名称"
-//	@Success  200     {object}  pkgs.Response{data=QueryTemplateRes}  "获取成功，返回模板列表"
+//	@Success  200     {object}  pkgs.Response{data=QueryListRes}  "获取成功，返回模板列表"
 //	@Failure  400     {object}  pkgs.Response               "请求参数错误"
 //	@Failure  500     {object}  pkgs.Response               "服务器内部错误"
 //	@Router   /template/list [get]
@@ -236,13 +199,7 @@ func (h *Handler) QueryList(c *gin.Context) {
 		result.FlatMap(pkgs.ValidateV2[QueryListReq](h.validator)),
 		result.FlatMap(h.repository.QueryList(c)),
 	).Match(
-		func(res QueryListRes) (QueryListRes, error) {
-			pkgs.Success(c, res)
-			return res, nil
-		},
-		func(err error) (QueryListRes, error) {
-			pkgs.HandleError(c, err)
-			return QueryListRes{}, err
-		},
+		pkgs.HandleSuccess[QueryListRes](c),
+		pkgs.HandleError[QueryListRes](c),
 	)
 }

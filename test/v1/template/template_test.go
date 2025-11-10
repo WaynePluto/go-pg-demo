@@ -82,7 +82,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateOneReq{
+		createReqBody := template.CreateReq{
 			Name: "新的测试模板",
 			Num:  &num,
 		}
@@ -119,7 +119,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateOneReq{
+		createReqBody := template.CreateReq{
 			Num: &num, // 缺少名称
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
@@ -147,7 +147,7 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - Num 超出范围", func(t *testing.T) {
 		// 准备
 		num := 0 // 无效的 Num
-		createReqBody := template.CreateOneReq{
+		createReqBody := template.CreateReq{
 			Name: "无效Num模板",
 			Num:  &num,
 		}
@@ -247,8 +247,8 @@ func TestUpdateByIdTemplate(t *testing.T) {
 		// 准备
 		entity := setupTestTemplate(t)
 		updateName := "更新后的名称"
-		updateReqBody := template.UpdateOneReq{
-			Name: &updateName,
+		updateReqBody := map[string]any{
+			"name": updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
 		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity.ID, bytes.NewBuffer(bodyBytes))
@@ -283,8 +283,8 @@ func TestUpdateByIdTemplate(t *testing.T) {
 		// 准备
 		entity := setupTestTemplate(t)
 		invalidNum := 0
-		updateReqBody := template.UpdateOneReq{
-			Num: &invalidNum,
+		updateReqBody := map[string]any{
+			"num": invalidNum,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
 		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity.ID, bytes.NewBuffer(bodyBytes))
@@ -342,7 +342,7 @@ func TestBatchCreateTemplates(t *testing.T) {
 		// 准备
 		num1, num2 := 200, 300
 		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateOneReq{
+			Templates: []template.CreateReq{
 				{Name: "批量模板 1", Num: &num1},
 				{Name: "批量模板 2", Num: &num2},
 			},
@@ -384,7 +384,7 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("无效输入 - 空列表", func(t *testing.T) {
 		// 准备
 		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateOneReq{},
+			Templates: []template.CreateReq{},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-create", bytes.NewBuffer(bodyBytes))
@@ -412,7 +412,7 @@ func TestBatchCreateTemplates(t *testing.T) {
 		// 准备
 		num := 100
 		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateOneReq{
+			Templates: []template.CreateReq{
 				{Name: "有效模板", Num: &num},
 				{Num: &num}, // 无效模板，缺少 Name
 			},

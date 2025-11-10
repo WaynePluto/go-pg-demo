@@ -18,8 +18,8 @@ type Repository struct {
 	logger *zap.Logger
 }
 
-func (r *Repository) Create(c *gin.Context) func(*CreateOneReq) mo.Result[CreateOneRes] {
-	return func(req *CreateOneReq) mo.Result[CreateOneRes] {
+func (r *Repository) Create(c *gin.Context) func(*CreateReq) mo.Result[CreateRes] {
+	return func(req *CreateReq) mo.Result[CreateRes] {
 		// 创建实体
 		entity := &TemplateEntity{
 			Name: req.Name,
@@ -30,17 +30,17 @@ func (r *Repository) Create(c *gin.Context) func(*CreateOneReq) mo.Result[Create
 		stmt, err := r.db.PrepareNamedContext(c.Request.Context(), query)
 		if err != nil {
 			r.logger.Error("创建模板语句准备失败", zap.Error(err))
-			return mo.Err[CreateOneRes](pkgs.NewApiError(http.StatusInternalServerError, "创建模板失败"))
+			return mo.Err[CreateRes](pkgs.NewApiError(http.StatusInternalServerError, "创建模板失败"))
 		}
 		defer stmt.Close()
 
 		err = stmt.GetContext(c.Request.Context(), entity, entity)
 		if err != nil {
 			r.logger.Error("创建模板失败", zap.Error(err))
-			return mo.Err[CreateOneRes](pkgs.NewApiError(http.StatusInternalServerError, "创建模板失败"))
+			return mo.Err[CreateRes](pkgs.NewApiError(http.StatusInternalServerError, "创建模板失败"))
 		}
 		// 返回结果
-		return mo.Ok(CreateOneRes(entity.ID))
+		return mo.Ok(CreateRes(entity.ID))
 	}
 }
 
@@ -128,10 +128,10 @@ func (r *Repository) GetByID(c *gin.Context) func(*GetByIDReq) mo.Result[GetByID
 	}
 }
 
-func (r *Repository) UpdateByID(c *gin.Context) func(*UpdateOneReq) mo.Result[UpdateOneRes] {
-	return func(req *UpdateOneReq) mo.Result[UpdateOneRes] {
+func (r *Repository) UpdateByID(c *gin.Context) func(*UpdateByIDReq) mo.Result[UpdateByIDRes] {
+	return func(req *UpdateByIDReq) mo.Result[UpdateByIDRes] {
 		// 动态构建更新语句
-		params := map[string]interface{}{"id": req.ID}
+		params := map[string]any{"id": req.ID}
 		var setClauses []string
 
 		if req.Name != nil {
@@ -145,20 +145,24 @@ func (r *Repository) UpdateByID(c *gin.Context) func(*UpdateOneReq) mo.Result[Up
 
 		// 如果没有需要更新的字段，直接返回成功
 		if len(setClauses) == 0 {
-			return mo.Ok(UpdateOneRes{})
+			return mo.Ok(UpdateByIDRes(0))
 		}
 
 		query := "UPDATE template SET " + strings.Join(setClauses, ", ") + " WHERE id = :id"
 
 		// 执行数据库操作
-		_, err := r.db.NamedExecContext(c.Request.Context(), query, params)
+		res, err := r.db.NamedExecContext(c.Request.Context(), query, params)
 		if err != nil {
 			r.logger.Error("更新模板失败", zap.Error(err))
-			return mo.Err[UpdateOneRes](pkgs.NewApiError(http.StatusInternalServerError, "更新模板失败"))
+			return mo.Err[UpdateByIDRes](pkgs.NewApiError(http.StatusInternalServerError, "更新模板失败"))
 		}
-
+		affectedRows, err := res.RowsAffected()
+		if err != nil {
+			r.logger.Error("获取影响行数失败", zap.Error(err))
+			return mo.Err[UpdateByIDRes](pkgs.NewApiError(http.StatusInternalServerError, "更新模板失败"))
+		}
 		// 返回结果
-		return mo.Ok(UpdateOneRes{})
+		return mo.Ok(affectedRows)
 	}
 }
 
@@ -166,7 +170,7 @@ func (r *Repository) DeleteByID(c *gin.Context) func(*DeleteByIDReq) mo.Result[D
 	return func(req *DeleteByIDReq) mo.Result[DeleteByIDRes] {
 		// 数据库操作
 		query := `DELETE FROM template WHERE id = :id`
-		res, err := r.db.NamedExecContext(c.Request.Context(), query, map[string]interface{}{"id": req.ID})
+		res, err := r.db.NamedExecContext(c.Request.Context(), query, map[string]any{"id": req.ID})
 		if err != nil {
 			r.logger.Error("删除模板失败", zap.Error(err))
 			return mo.Err[DeleteByIDRes](pkgs.NewApiError(http.StatusInternalServerError, "删除模板失败"))
@@ -210,7 +214,7 @@ func (r *Repository) BatchDelete(c *gin.Context) func(*DeleteTemplatesReq) mo.Re
 func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[QueryListRes] {
 	return func(req *QueryListReq) mo.Result[QueryListRes] {
 		// 构建查询
-		params := map[string]interface{}{
+		params := map[string]any{
 			"limit":  req.PageSize,
 			"offset": (req.Page - 1) * req.PageSize,
 		}
