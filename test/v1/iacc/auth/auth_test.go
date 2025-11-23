@@ -116,7 +116,7 @@ func TestAuthLogin(t *testing.T) {
 		testRouter.ServeHTTP(w, req)
 		var resp pkgs.Response
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
-		assert.Equal(t, http.StatusUnauthorized, resp.Code)
+		assert.Equal(t, http.StatusUnauthorized, resp.Code, "应返回401业务码")
 		assert.Equal(t, "用户名或密码错误", resp.Msg)
 	})
 }

@@ -270,7 +270,7 @@ func TestUpdateRole(t *testing.T) {
 		testRouter.ServeHTTP(w, req)
 
 		// 断言
-		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是200")
+		assert.Equal(t, http.StatusOK, w.Code, "更新角色请求应该返回200状态码")
 
 		// 验证数据库中的值已更新
 		type UpdatedRole struct {
@@ -311,7 +311,7 @@ func TestUpdateRole(t *testing.T) {
 		var resp pkgs.Response
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "响应体应该能正确解析为Response结构体")
-		assert.Equal(t, float64(0), resp.Data, "应该影响零行数据")
+		assert.Equal(t, float64(0), resp.Data, "更新不存在的角色应该影响零行数据")
 	})
 }
 

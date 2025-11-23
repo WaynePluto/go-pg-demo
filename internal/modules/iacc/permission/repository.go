@@ -118,8 +118,8 @@ func (r *Repository) UpdateByID(c *gin.Context) func(*UpdatePermissionReq) mo.Re
 func (r *Repository) DeleteByID(c *gin.Context) func(*DeleteByIDReq) mo.Result[DeleteByIDRes] {
 	return func(req *DeleteByIDReq) mo.Result[DeleteByIDRes] {
 		// 数据库操作
-		query := `DELETE FROM iacc_permission WHERE id = :id`
-		res, err := r.db.NamedExecContext(c.Request.Context(), query, map[string]any{"id": req.ID})
+		query := `DELETE FROM iacc_permission WHERE id = $1`
+		res, err := r.db.ExecContext(c.Request.Context(), query, req.ID)
 		if err != nil {
 			r.logger.Error("删除权限失败", zap.Error(err))
 			return mo.Err[DeleteByIDRes](pkgs.NewApiError(http.StatusInternalServerError, "删除权限失败"))
@@ -161,14 +161,17 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 		// 查询总数
 		var total int64
 		countQuery := "SELECT count(*) FROM iacc_permission" + whereCondition
-		nstmt, err := r.db.PrepareNamedContext(c.Request.Context(), countQuery)
+		// 使用 NamedQuery 而不是 PrepareNamed
+		rows, err := r.db.NamedQueryContext(c.Request.Context(), countQuery, params)
 		if err != nil {
 			r.logger.Error("准备命名计数查询失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询权限列表失败"))
 		}
-		defer nstmt.Close()
+		defer rows.Close()
 
-		err = nstmt.GetContext(c.Request.Context(), &total, params)
+		if rows.Next() {
+			err = rows.Scan(&total)
+		}
 		if err != nil {
 			r.logger.Error("统计权限数量失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询权限列表失败"))
@@ -184,14 +187,23 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 		// 查询列表
 		var entities []PermissionEntity
 		listQuery := `SELECT id, name, type, metadata, created_at, updated_at FROM iacc_permission` + whereCondition + ` ORDER BY created_at DESC LIMIT :limit OFFSET :offset`
-		nstmt, err = r.db.PrepareNamedContext(c.Request.Context(), listQuery)
+		// 使用 NamedQuery 而不是 PrepareNamed
+		rows, err = r.db.NamedQueryContext(c.Request.Context(), listQuery, params)
 		if err != nil {
 			r.logger.Error("准备命名列表查询失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询权限列表失败"))
 		}
-		defer nstmt.Close()
+		defer rows.Close()
 
-		err = nstmt.SelectContext(c.Request.Context(), &entities, params)
+		for rows.Next() {
+			var entity PermissionEntity
+			err = rows.StructScan(&entity)
+			if err != nil {
+				r.logger.Error("扫描行数据失败", zap.Error(err))
+				return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询权限列表失败"))
+			}
+			entities = append(entities, entity)
+		}
 		if err != nil {
 			r.logger.Error("查询权限列表失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询权限列表失败"))

@@ -2,7 +2,6 @@ package role
 
 import (
 	"database/sql"
-	"fmt"
 	"go-pg-demo/pkgs"
 	"net/http"
 	"strings"
@@ -170,8 +169,8 @@ func (r *Repository) UpdateByID(c *gin.Context) func(*UpdateByIDReq) mo.Result[U
 func (r *Repository) DeleteByID(c *gin.Context) func(*DeleteByIDReq) mo.Result[DeleteByIDRes] {
 	return func(req *DeleteByIDReq) mo.Result[DeleteByIDRes] {
 		// 数据库操作
-		query := `DELETE FROM iacc_role WHERE id = :id`
-		res, err := r.db.NamedExecContext(c.Request.Context(), query, map[string]any{"id": req.ID})
+		query := `DELETE FROM iacc_role WHERE id = $1`
+		res, err := r.db.ExecContext(c.Request.Context(), query, req.ID)
 		if err != nil {
 			r.logger.Error("删除角色失败", zap.Error(err))
 			return mo.Err[DeleteByIDRes](pkgs.NewApiError(http.StatusInternalServerError, "删除角色失败"))
@@ -234,14 +233,17 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 		// 查询总数
 		var total int64
 		countQuery := "SELECT count(*) FROM iacc_role" + whereCondition
-		nstmt, err := r.db.PrepareNamedContext(c.Request.Context(), countQuery)
+		// 使用 NamedQuery 而不是 PrepareNamed
+		rows, err := r.db.NamedQueryContext(c.Request.Context(), countQuery, params)
 		if err != nil {
 			r.logger.Error("准备命名计数查询失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色列表失败"))
 		}
-		defer nstmt.Close()
+		defer rows.Close()
 
-		err = nstmt.GetContext(c.Request.Context(), &total, params)
+		if rows.Next() {
+			err = rows.Scan(&total)
+		}
 		if err != nil {
 			r.logger.Error("统计角色数量失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色列表失败"))
@@ -257,14 +259,23 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 		// 查询列表
 		var entities []RoleEntity
 		listQuery := `SELECT id, name, description, created_at, updated_at FROM iacc_role` + whereCondition + ` ORDER BY id DESC LIMIT :limit OFFSET :offset`
-		nstmt, err = r.db.PrepareNamedContext(c.Request.Context(), listQuery)
+		// 使用 NamedQuery 而不是 PrepareNamed
+		rows, err = r.db.NamedQueryContext(c.Request.Context(), listQuery, params)
 		if err != nil {
 			r.logger.Error("准备命名列表查询失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色列表失败"))
 		}
-		defer nstmt.Close()
+		defer rows.Close()
 
-		err = nstmt.SelectContext(c.Request.Context(), &entities, params)
+		for rows.Next() {
+			var entity RoleEntity
+			err = rows.StructScan(&entity)
+			if err != nil {
+				r.logger.Error("扫描行数据失败", zap.Error(err))
+				return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色列表失败"))
+			}
+			entities = append(entities, entity)
+		}
 		if err != nil {
 			r.logger.Error("查询角色列表失败", zap.Error(err))
 			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色列表失败"))
@@ -323,17 +334,17 @@ func (r *Repository) AssignPermissions(c *gin.Context) func(*AssignPermissionsBy
 			return mo.Ok(AssignPermissionsRes(0))
 		}
 
-		// 插入新的关联
-		var values []string
-		var params []interface{}
-		params = append(params, req.ID)
-		for i, permID := range req.PermissionIDs {
-			values = append(values, fmt.Sprintf("($1, $%d)", i+2))
-			params = append(params, permID)
+		// 插入新的关联 - 使用批量插入方式
+		var entities []map[string]any
+		for _, permID := range req.PermissionIDs {
+			entities = append(entities, map[string]any{
+				"role_id":       req.ID,
+				"permission_id": permID,
+			})
 		}
 
-		insertQuery := `INSERT INTO iacc_role_permission (role_id, permission_id) VALUES ` + strings.Join(values, ",")
-		if _, err = tx.ExecContext(c.Request.Context(), insertQuery, params...); err != nil {
+		insertQuery := `INSERT INTO iacc_role_permission (role_id, permission_id) VALUES (:role_id, :permission_id)`
+		if _, err = tx.NamedExecContext(c.Request.Context(), insertQuery, entities); err != nil {
 			r.logger.Error("为角色插入新权限失败", zap.String("roleID", req.ID), zap.Error(err))
 			return mo.Err[AssignPermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "分配权限失败"))
 		}

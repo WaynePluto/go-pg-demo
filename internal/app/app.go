@@ -5,7 +5,6 @@ import (
 
 	v1 "go-pg-demo/api/v1"
 	_ "go-pg-demo/docs" // Swagger docs
-	"go-pg-demo/internal/middlewares"
 	"go-pg-demo/migration"
 	"go-pg-demo/pkgs"
 
@@ -34,10 +33,7 @@ func NewApp(
 	logger *zap.Logger,
 	conf *pkgs.Config,
 	db *sqlx.DB,
-	loggerMiddleware middlewares.LoggerMiddleware,
-	authMiddleware middlewares.AuthMiddleware,
-	recoveryMiddleware middlewares.RecoveryMiddleware,
-	permissionMiddleware middlewares.PermissionMiddleware,
+	middlewares []gin.HandlerFunc,
 	v1Router *v1.Router,
 	scheduler *pkgs.Scheduler,
 ) (*App, error) {
@@ -47,10 +43,11 @@ func NewApp(
 	if err != nil {
 		return nil, err
 	}
-	server.Use(gin.HandlerFunc(loggerMiddleware))
-	server.Use(gin.HandlerFunc(authMiddleware))
-	server.Use(gin.HandlerFunc(permissionMiddleware))
-	server.Use(gin.HandlerFunc(recoveryMiddleware))
+
+	// 应用中间件
+	for _, middleware := range middlewares {
+		server.Use(middleware)
+	}
 
 	v1Router.Register()
 

@@ -7,7 +7,7 @@
 
 3. 从 `configs/config.dev.yaml` 等配置文件中获取数据库连接信息，然后运行数据迁移命令，例如：`migrate -path migraion/db -database "YOUR_DATABASE_CONNECTION_STRING" up`。
 
-4. 根据用户提供的业务设计，定义api路由与控制器接口，在`internal/api/v1/intf`目录下，参考`template`模块的handler接口，写入要实现的模块内所有的handler接口，然后在`internal/api/v1/router.go`文件中，参考`template`模块，修改构造函数，扩展 RegisterXXXModuleXXXTable 方法。
+4. 根据用户提供的业务设计，定义api路由与控制器接口，在`api/v1/intf`目录下，参考`template`模块的handler接口，写入要实现的模块内所有的handler接口，然后在`internal/api/v1/router.go`文件中，参考`template`模块，修改构造函数，扩展 RegisterXXXModuleXXXTable 方法。
 
 5. 创建新业务目录和文件，在 internal/modules 目录下创建新的业务目录 xxx_module_name ；如果业务中涉及到多个表，则在业务目录 xxx_module_name 下面再创建各个实体表 xxx_table_name 的目录;在业务目录或者实体表目录下创建 type, handler 代码文件；如果新业务有多张表，则在业务目录下创建 services/xxx_service 文件(services目录并不是必须的，根据业务设计来判断)；所有的go代码文件再增加第一行package语句
 

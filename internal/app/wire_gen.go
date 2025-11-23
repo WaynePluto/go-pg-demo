@@ -39,8 +39,9 @@ func InitializeApp() (*App, func(), error) {
 	}
 	loggerMiddleware := middlewares.NewLoggerMiddleware(logger)
 	authMiddleware := middlewares.NewAuthMiddleware(config, logger)
-	recoveryMiddleware := middlewares.NewRecoveryMiddleware(logger)
 	permissionMiddleware := middlewares.NewPermissionMiddleware(db, logger)
+	recoveryMiddleware := middlewares.NewRecoveryMiddleware(logger)
+	v := middlewares.NewUseMiddlewares(loggerMiddleware, authMiddleware, permissionMiddleware, recoveryMiddleware)
 	requestValidator := pkgs.NewRequestValidator()
 	handler := template.NewTemplateHandler(db, logger, requestValidator)
 	userHandler := user.NewUserHandler(db, logger, requestValidator)
@@ -49,7 +50,7 @@ func InitializeApp() (*App, func(), error) {
 	permissionHandler := permission.NewPermissionHandler(db, logger, requestValidator)
 	router := v1.NewRouter(engine, handler, userHandler, roleHandler, authHandler, permissionHandler)
 	scheduler := pkgs.NewScheduler(logger, db)
-	app, err := NewApp(engine, logger, config, db, loggerMiddleware, authMiddleware, recoveryMiddleware, permissionMiddleware, router, scheduler)
+	app, err := NewApp(engine, logger, config, db, v, router, scheduler)
 	if err != nil {
 		return nil, nil, err
 	}
