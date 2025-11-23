@@ -90,7 +90,7 @@ func TestPermissionMiddleware_Success_WithPermission_TemplateList(t *testing.T) 
 	assert.Equal(t, http.StatusOK, w.Code)
 	resp := parseResponse(t, w)
 	assert.Equal(t, http.StatusOK, resp.Code, "业务码应为200 成功")
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	assert.True(t, ok, "返回数据应为对象")
 	assert.Contains(t, data, "list", "返回数据应包含list字段")
 }
@@ -134,7 +134,7 @@ func TestPermissionMiddleware_Whitelist_TemplateList_NoToken(t *testing.T) {
 	testRouter.ServeHTTP(w, req)
 	resp := parseResponse(t, w)
 	assert.Equal(t, http.StatusOK, resp.Code, "白名单接口应直接成功")
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	assert.True(t, ok)
 	assert.Contains(t, data, "list")
 }

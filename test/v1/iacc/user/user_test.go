@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"go-pg-demo/internal/app"
-	"go-pg-demo/internal/modules/iacc/user"
 	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
@@ -51,19 +50,19 @@ func TestMain(m *testing.M) {
 }
 
 // 在数据库中创建一个用户用于测试，并注册一个清理函数以便在测试结束后删除它
-func setupTestUser(t *testing.T) user.UserEntity {
+func setupTestUser(t *testing.T) map[string]any {
 	t.Helper()
 
 	// 使用 TestUtil 创建测试用户
 	testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 	testUser := testUtil.SetupTestUser()
 
-	// 转换为 UserEntity
-	entity := user.UserEntity{
-		ID:       testUser.ID,
-		Username: testUser.Username,
-		Phone:    testUser.Phone,
-		Password: testUser.Password,
+	// 转换为 map
+	entity := map[string]any{
+		"id":       testUser.ID,
+		"username": testUser.Username,
+		"phone":    testUser.Phone,
+		"password": testUser.Password,
 	}
 
 	return entity
@@ -75,10 +74,10 @@ func TestCreateUser(t *testing.T) {
 		username := "testuser1_" + uuid.NewString()[:8]
 		phone := fmt.Sprintf("138%s", uuid.NewString()[:8])
 		password := "password123"
-		createReqBody := user.CreateReq{
-			Username: username,
-			Phone:    phone,
-			Password: password,
+		createReqBody := map[string]any{
+			"username": username,
+			"phone":    phone,
+			"password": password,
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user", bytes.NewBuffer(bodyBytes))
@@ -105,15 +104,21 @@ func TestCreateUser(t *testing.T) {
 		assert.True(t, ok, "响应数据应该是字符串类型的 ID")
 
 		// 验证用户确实被创建
-		var entity user.UserEntity
-		query := `SELECT id, phone, profile, created_at, updated_at FROM "iacc_user" WHERE id = $1`
+		type UserEntity struct {
+			ID        string `db:"id"`
+			Phone     string `db:"phone"`
+			CreatedAt string `db:"created_at"`
+			UpdatedAt string `db:"updated_at"`
+		}
+		var entity UserEntity
+		query := `SELECT id, phone, created_at, updated_at FROM "iacc_user" WHERE id = $1`
 		err = testDB.GetContext(context.Background(), &entity, query, createdID)
 		assert.NoError(t, err, "应该能在数据库中找到创建的用户")
 		assert.Equal(t, phone, entity.Phone, "用户手机号应该匹配")
 
 		// 清理
 		t.Cleanup(func() {
-			_, err := testDB.NamedExecContext(context.Background(), `DELETE FROM "iacc_user" WHERE id = :id`, map[string]interface{}{"id": createdID})
+			_, err := testDB.NamedExecContext(context.Background(), `DELETE FROM "iacc_user" WHERE id = :id`, map[string]any{"id": createdID})
 			assert.NoError(t, err, "清理创建的用户不应出错")
 		})
 	})
@@ -122,9 +127,9 @@ func TestCreateUser(t *testing.T) {
 		// 准备
 		username := "testuser2_" + uuid.NewString()[:8]
 		password := "password123"
-		createReqBody := user.CreateReq{
-			Username: username,
-			Password: password, // 缺少手机号
+		createReqBody := map[string]any{
+			"username": username,
+			"password": password, // 缺少手机号
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user", bytes.NewBuffer(bodyBytes))
@@ -152,9 +157,9 @@ func TestCreateUser(t *testing.T) {
 		// 准备
 		username := "testuser3_" + uuid.NewString()[:8]
 		phone := fmt.Sprintf("138%s", uuid.NewString()[:8])
-		createReqBody := user.CreateReq{
-			Username: username,
-			Phone:    phone, // 缺少密码
+		createReqBody := map[string]any{
+			"username": username,
+			"phone":    phone, // 缺少密码
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user", bytes.NewBuffer(bodyBytes))
@@ -182,10 +187,10 @@ func TestCreateUser(t *testing.T) {
 func TestBatchCreateUsers(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		batchCreateReq := user.BatchCreateReq{
-			Users: []user.CreateReq{
-				{Username: "批量用户1_" + uuid.NewString()[:8], Phone: fmt.Sprintf("138%s", uuid.NewString()[:8]), Password: "password123"},
-				{Username: "批量用户2_" + uuid.NewString()[:8], Phone: fmt.Sprintf("138%s", uuid.NewString()[:8]), Password: "password123"},
+		batchCreateReq := map[string]any{
+			"users": []map[string]any{
+				{"username": "批量用户1_" + uuid.NewString()[:8], "phone": fmt.Sprintf("138%s", uuid.NewString()[:8]), "password": "password123"},
+				{"username": "批量用户2_" + uuid.NewString()[:8], "phone": fmt.Sprintf("138%s", uuid.NewString()[:8]), "password": "password123"},
 			},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
@@ -209,14 +214,14 @@ func TestBatchCreateUsers(t *testing.T) {
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, createResp.Code, "响应码应该是 200")
 
-		ids, ok := createResp.Data.([]interface{})
+		ids, ok := createResp.Data.([]any)
 		assert.True(t, ok, "响应数据应该是 ID 数组")
 		assert.Len(t, ids, 2, "应创建 2 个用户")
 
 		// 清理
 		t.Cleanup(func() {
 			for _, id := range ids {
-				_, err := testDB.NamedExecContext(context.Background(), `DELETE FROM "iacc_user" WHERE id = :id`, map[string]interface{}{"id": id.(string)})
+				_, err := testDB.NamedExecContext(context.Background(), `DELETE FROM "iacc_user" WHERE id = :id`, map[string]any{"id": id.(string)})
 				assert.NoError(t, err, "清理批量创建的用户不应出错")
 			}
 		})
@@ -224,8 +229,8 @@ func TestBatchCreateUsers(t *testing.T) {
 
 	t.Run("无效输入 - 空列表", func(t *testing.T) {
 		// 准备
-		batchCreateReq := user.BatchCreateReq{
-			Users: []user.CreateReq{},
+		batchCreateReq := map[string]any{
+			"users": []map[string]any{},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user/batch-create", bytes.NewBuffer(bodyBytes))
@@ -262,7 +267,7 @@ func TestGetUserByID(t *testing.T) {
 		token := testUtil.GetAccessUserToken([]string{})
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/user/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/user/"+entity["id"].(string), nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -275,11 +280,11 @@ func TestGetUserByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
 
-		assert.Equal(t, entity.Phone, data["phone"], "获取到的用户手机号应与创建时一致")
-		assert.Equal(t, entity.Username, data["username"], "获取到的用户名应与创建时一致")
+		assert.Equal(t, entity["phone"], data["phone"], "获取到的用户手机号应与创建时一致")
+		assert.Equal(t, entity["username"], data["username"], "获取到的用户名应与创建时一致")
 	})
 
 	t.Run("无效ID", func(t *testing.T) {
@@ -330,9 +335,8 @@ func TestUpdateUser(t *testing.T) {
 		// 准备
 		entity := setupTestUser(t)
 		newPassword := "newpassword123"
-		updateReqBody := user.UpdateByIDReq{
-			ID:       entity.ID,
-			Password: &newPassword,
+		updateReqBody := map[string]any{
+			"password": &newPassword,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
 
@@ -342,7 +346,7 @@ func TestUpdateUser(t *testing.T) {
 		token := testUtil.GetAccessUserToken([]string{})
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodPut, "/v1/user/"+entity.ID, bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/user/"+entity["id"].(string), bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
@@ -356,19 +360,21 @@ func TestUpdateUser(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 验证用户确实被更新
-		var updatedEntity user.UserEntity
-		query := `SELECT id, phone, password, profile, created_at, updated_at FROM "iacc_user" WHERE id = $1`
-		err = testDB.GetContext(context.Background(), &updatedEntity, query, entity.ID)
+		type UpdatedUser struct {
+			Password string `db:"password"`
+		}
+		var updatedUser UpdatedUser
+		query := `SELECT password FROM "iacc_user" WHERE id = $1`
+		err = testDB.GetContext(context.Background(), &updatedUser, query, entity["id"])
 		assert.NoError(t, err, "应该能在数据库中找到更新的用户")
-		assert.Equal(t, newPassword, updatedEntity.Password, "用户密码应该已被更新")
+		assert.Equal(t, newPassword, updatedUser.Password, "用户密码应该已被更新")
 	})
 
 	t.Run("无效ID", func(t *testing.T) {
 		// 准备
 		newPassword := "newpassword123"
-		updateReqBody := user.UpdateByIDReq{
-			ID:       "invalid-id",
-			Password: &newPassword,
+		updateReqBody := map[string]any{
+			"password": &newPassword,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
 
@@ -404,7 +410,7 @@ func TestDeleteUser(t *testing.T) {
 		token := testUtil.GetAccessUserToken([]string{})
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodDelete, "/v1/user/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodDelete, "/v1/user/"+entity["id"].(string), nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -420,9 +426,15 @@ func TestDeleteUser(t *testing.T) {
 		assert.Equal(t, 1, affectedRows, "应影响 1 行")
 
 		// 验证用户确实被删除
-		var deletedEntity user.UserEntity
-		query := `SELECT id, phone, profile, created_at, updated_at FROM "iacc_user" WHERE id = $1`
-		err = testDB.GetContext(context.Background(), &deletedEntity, query, entity.ID)
+		type DeletedUser struct {
+			ID        string `db:"id"`
+			Phone     string `db:"phone"`
+			CreatedAt string `db:"created_at"`
+			UpdatedAt string `db:"updated_at"`
+		}
+		var deletedUser DeletedUser
+		query := `SELECT id, phone, created_at, updated_at FROM "iacc_user" WHERE id = $1`
+		err = testDB.GetContext(context.Background(), &deletedUser, query, entity["id"])
 		assert.Error(t, err, "应该无法在数据库中找到已删除的用户")
 	})
 
@@ -452,8 +464,8 @@ func TestBatchDeleteUsers(t *testing.T) {
 		// 准备
 		entity1 := setupTestUser(t)
 		entity2 := setupTestUser(t)
-		deleteReq := user.DeleteUsersReq{
-			IDs: []string{entity1.ID, entity2.ID},
+		deleteReq := map[string]any{
+			"ids": []string{entity1["id"].(string), entity2["id"].(string)},
 		}
 		bodyBytes, _ := json.Marshal(deleteReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user/batch-delete", bytes.NewBuffer(bodyBytes))
@@ -477,7 +489,7 @@ func TestBatchDeleteUsers(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code)
 
 		// 验证
-		query, args, err := sqlx.In("SELECT COUNT(*) FROM \"iacc_user\" WHERE id IN (?)", []string{entity1.ID, entity2.ID})
+		query, args, err := sqlx.In("SELECT COUNT(*) FROM \"iacc_user\" WHERE id IN (?)", []string{entity1["id"].(string), entity2["id"].(string)})
 		assert.NoError(t, err)
 		query = testDB.Rebind(query)
 		var count int
@@ -488,8 +500,8 @@ func TestBatchDeleteUsers(t *testing.T) {
 
 	t.Run("无效输入 - 空ID列表", func(t *testing.T) {
 		// 准备
-		deleteReq := user.DeleteUsersReq{
-			IDs: []string{},
+		deleteReq := map[string]any{
+			"ids": []string{},
 		}
 		bodyBytes, _ := json.Marshal(deleteReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user/batch-delete", bytes.NewBuffer(bodyBytes))
@@ -526,7 +538,7 @@ func TestQueryUserList(t *testing.T) {
 		token := testUtil.GetAccessUserToken([]string{})
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/user/list?phone="+entity.Phone+"&page=1&pageSize=10", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/user/list?phone="+entity["phone"].(string)+"&page=1&pageSize=10", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -539,13 +551,13 @@ func TestQueryUserList(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
 
 		total := int(data["total"].(float64))
 		assert.GreaterOrEqual(t, total, 1, "总数量应该至少为1")
 
-		list := data["list"].([]interface{})
+		list := data["list"].([]any)
 		assert.GreaterOrEqual(t, len(list), 1, "列表长度应该至少为1")
 	})
 
@@ -569,13 +581,13 @@ func TestQueryUserList(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
 
 		total := int(data["total"].(float64))
 		assert.Equal(t, 0, total, "总数量应该为0")
 
-		list := data["list"].([]interface{})
+		list := data["list"].([]any)
 		assert.Equal(t, 0, len(list), "列表长度应该为0")
 	})
 
@@ -589,7 +601,7 @@ func TestQueryUserList(t *testing.T) {
 		token := testUtil.GetAccessUserToken([]string{})
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/user/list?username="+entity.Username, nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/user/list?username="+entity["username"].(string), nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -601,15 +613,15 @@ func TestQueryUserList(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok)
 		assert.Greater(t, int(data["total"].(float64)), 0)
-		list, ok := data["list"].([]interface{})
+		list, ok := data["list"].([]any)
 		assert.True(t, ok)
 		assert.NotEmpty(t, list)
 		// 确保返回的第一个元素是我们刚创建的
-		firstItem := list[0].(map[string]interface{})
-		assert.Equal(t, entity.ID, firstItem["id"])
+		firstItem := list[0].(map[string]any)
+		assert.Equal(t, entity["id"], firstItem["id"])
 	})
 }
 
@@ -634,12 +646,11 @@ func TestAssignRoles(t *testing.T) {
 		})
 
 		roleIDs := []string{roleID}
-		assignReq := user.AssignRolesReq{
-			ID:      entity.ID,
-			RoleIDs: roleIDs,
+		assignReq := map[string]any{
+			"role_ids": roleIDs,
 		}
 		bodyBytes, _ := json.Marshal(assignReq)
-		req, _ := http.NewRequest(http.MethodPost, "/v1/user/"+entity.ID+"/role", bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPost, "/v1/user/"+entity["id"].(string)+"/role", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 
 		// 创建 TestUtil 实例
@@ -666,9 +677,8 @@ func TestAssignRoles(t *testing.T) {
 	t.Run("无效ID", func(t *testing.T) {
 		// 准备
 		roleIDs := []string{uuid.NewString()}
-		assignReq := user.AssignRolesReq{
-			ID:      "invalid-id",
-			RoleIDs: roleIDs,
+		assignReq := map[string]any{
+			"role_ids": roleIDs,
 		}
 		bodyBytes, _ := json.Marshal(assignReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/user/invalid-id/role", bytes.NewBuffer(bodyBytes))

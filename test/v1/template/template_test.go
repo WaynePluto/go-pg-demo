@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"go-pg-demo/internal/app"
-	"go-pg-demo/internal/modules/template"
 	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
@@ -49,27 +50,42 @@ func TestMain(m *testing.M) {
 }
 
 // 在数据库中创建一个模板用于测试，并注册一个清理函数以便在测试结束后删除它
-func setupTestTemplate(t *testing.T) template.TemplateEntity {
+func setupTestTemplate(t *testing.T) map[string]any {
 	t.Helper()
 
 	num := 100
-	entity := template.TemplateEntity{
-		Name: "Test Template",
-		Num:  &num,
+	// 使用时间戳生成唯一的名称，避免测试之间的干扰
+	uniqueName := "Test Template_" + fmt.Sprintf("%d", time.Now().UnixNano())
+	entity := map[string]any{
+		"name": uniqueName,
+		"num":  &num,
 	}
 
+	// 定义一个结构体来接收返回的数据
+	type Result struct {
+		ID        string `db:"id"`
+		CreatedAt string `db:"created_at"`
+		UpdatedAt string `db:"updated_at"`
+	}
+
+	var result Result
 	// 直接在数据库中创建实体
 	query := `INSERT INTO template (name, num) VALUES (:name, :num) RETURNING id, created_at, updated_at`
 	stmt, err := testDB.PrepareNamedContext(context.Background(), query)
 	assert.NoError(t, err)
 	defer stmt.Close()
 
-	err = stmt.GetContext(context.Background(), &entity, entity)
+	err = stmt.GetContext(context.Background(), &result, entity)
 	assert.NoError(t, err)
+
+	// 将结果合并到 entity map 中
+	entity["id"] = result.ID
+	entity["created_at"] = result.CreatedAt
+	entity["updated_at"] = result.UpdatedAt
 
 	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
 	t.Cleanup(func() {
-		_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": entity.ID})
+		_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]any{"id": result.ID})
 		if err != nil {
 			t.Errorf("清理测试模板失败: %v", err)
 		}
@@ -82,9 +98,9 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateReq{
-			Name: "新的测试模板",
-			Num:  &num,
+		createReqBody := map[string]any{
+			"name": "新的测试模板",
+			"num":  &num,
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template", bytes.NewBuffer(bodyBytes))
@@ -111,7 +127,7 @@ func TestCreateTemplate(t *testing.T) {
 
 		// 清理
 		t.Cleanup(func() {
-			_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": createdID})
+			_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]any{"id": createdID})
 			assert.NoError(t, err, "清理创建的模板不应出错")
 		})
 	})
@@ -119,8 +135,8 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
 		num := 100
-		createReqBody := template.CreateReq{
-			Num: &num, // 缺少名称
+		createReqBody := map[string]any{
+			"num": &num, // 缺少名称
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template", bytes.NewBuffer(bodyBytes))
@@ -147,9 +163,9 @@ func TestCreateTemplate(t *testing.T) {
 	t.Run("无效输入 - Num 超出范围", func(t *testing.T) {
 		// 准备
 		num := 0 // 无效的 Num
-		createReqBody := template.CreateReq{
-			Name: "无效Num模板",
-			Num:  &num,
+		createReqBody := map[string]any{
+			"name": "无效Num模板",
+			"num":  &num,
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template", bytes.NewBuffer(bodyBytes))
@@ -180,7 +196,7 @@ func TestGetByIdTemplate(t *testing.T) {
 		entity := setupTestTemplate(t)
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/template/"+entity["id"].(string), nil)
 
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -193,16 +209,16 @@ func TestGetByIdTemplate(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
 
-		assert.Equal(t, entity.Name, data["name"], "获取到的模板名称应与创建时一致")
+		assert.Equal(t, entity["name"], data["name"], "获取到的模板名称应与创建时一致")
 
 		// Num 可能为 null，需要小心处理
 		if num, ok := data["num"]; ok && num != nil {
-			assert.Equal(t, float64(*entity.Num), num, "获取到的模板数量应与创建时一致")
+			assert.Equal(t, float64(*entity["num"].(*int)), num, "获取到的模板数量应与创建时一致")
 		} else {
-			assert.Nil(t, entity.Num, "如果响应中没有 num，则原始数据也应为 nil")
+			assert.Nil(t, entity["num"], "如果响应中没有 num，则原始数据也应为 nil")
 		}
 	})
 
@@ -251,7 +267,7 @@ func TestUpdateByIdTemplate(t *testing.T) {
 			"name": updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity.ID, bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity["id"].(string), bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
@@ -272,11 +288,15 @@ func TestUpdateByIdTemplate(t *testing.T) {
 		assert.Equal(t, http.StatusOK, updateResp.Code, "响应码应该是 200")
 
 		// 验证更新
-		var updatedTemplate template.TemplateEntity
-		err = testDB.GetContext(context.Background(), &updatedTemplate, "SELECT * FROM template WHERE id = $1", entity.ID)
+		type UpdatedTemplate struct {
+			Name string `db:"name"`
+			Num  *int   `db:"num"`
+		}
+		var updatedTemplate UpdatedTemplate
+		err = testDB.GetContext(context.Background(), &updatedTemplate, "SELECT name, num FROM template WHERE id = $1", entity["id"])
 		assert.NoError(t, err, "从数据库获取更新后的模板不应出错")
 		assert.Equal(t, updateName, updatedTemplate.Name, "模板名称应已更新")
-		assert.Equal(t, *entity.Num, *updatedTemplate.Num, "模板数量不应改变")
+		assert.Equal(t, *entity["num"].(*int), *updatedTemplate.Num, "模板数量不应改变")
 	})
 
 	t.Run("无效输入 - Num 超出范围", func(t *testing.T) {
@@ -287,7 +307,7 @@ func TestUpdateByIdTemplate(t *testing.T) {
 			"num": invalidNum,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity.ID, bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/template/"+entity["id"].(string), bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
@@ -315,7 +335,7 @@ func TestDeleteByIdTemplate(t *testing.T) {
 		entity := setupTestTemplate(t)
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodDelete, "/v1/template/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodDelete, "/v1/template/"+entity["id"].(string), nil)
 
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
@@ -331,7 +351,7 @@ func TestDeleteByIdTemplate(t *testing.T) {
 
 		// 验证删除
 		var count int
-		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM template WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM template WHERE id = $1", entity["id"])
 		assert.NoError(t, err, "查询已删除模板的计数不应出错")
 		assert.Equal(t, 0, count, "删除后模板在数据库中应不存在")
 	})
@@ -341,10 +361,10 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
 		num1, num2 := 200, 300
-		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateReq{
-				{Name: "批量模板 1", Num: &num1},
-				{Name: "批量模板 2", Num: &num2},
+		batchCreateReq := map[string]any{
+			"templates": []map[string]any{
+				{"name": "批量模板 1", "num": &num1},
+				{"name": "批量模板 2", "num": &num2},
 			},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
@@ -368,14 +388,14 @@ func TestBatchCreateTemplates(t *testing.T) {
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, createResp.Code, "响应码应该是 200")
 
-		ids, ok := createResp.Data.([]interface{})
+		ids, ok := createResp.Data.([]any)
 		assert.True(t, ok, "响应数据应该是 ID 数组")
 		assert.Len(t, ids, 2, "应创建 2 个模板")
 
 		// 清理
 		t.Cleanup(func() {
 			for _, id := range ids {
-				_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]interface{}{"id": id.(string)})
+				_, err := testDB.NamedExecContext(context.Background(), "DELETE FROM template WHERE id = :id", map[string]any{"id": id.(string)})
 				assert.NoError(t, err, "清理批量创建的模板不应出错")
 			}
 		})
@@ -383,8 +403,8 @@ func TestBatchCreateTemplates(t *testing.T) {
 
 	t.Run("无效输入 - 空列表", func(t *testing.T) {
 		// 准备
-		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateReq{},
+		batchCreateReq := map[string]any{
+			"templates": []map[string]any{},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-create", bytes.NewBuffer(bodyBytes))
@@ -411,10 +431,10 @@ func TestBatchCreateTemplates(t *testing.T) {
 	t.Run("无效输入 - 列表中有无效数据", func(t *testing.T) {
 		// 准备
 		num := 100
-		batchCreateReq := template.BatchCreateReq{
-			Templates: []template.CreateReq{
-				{Name: "有效模板", Num: &num},
-				{Num: &num}, // 无效模板，缺少 Name
+		batchCreateReq := map[string]any{
+			"templates": []map[string]any{
+				{"name": "有效模板", "num": &num},
+				{"num": &num}, // 无效模板，缺少 Name
 			},
 		}
 		bodyBytes, _ := json.Marshal(batchCreateReq)
@@ -445,8 +465,8 @@ func TestBatchDeleteTemplates(t *testing.T) {
 		// 准备
 		entity1 := setupTestTemplate(t)
 		entity2 := setupTestTemplate(t)
-		deleteReq := template.DeleteTemplatesReq{
-			IDs: []string{entity1.ID, entity2.ID},
+		deleteReq := map[string]any{
+			"ids": []string{entity1["id"].(string), entity2["id"].(string)},
 		}
 		bodyBytes, _ := json.Marshal(deleteReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-delete", bytes.NewBuffer(bodyBytes))
@@ -469,7 +489,7 @@ func TestBatchDeleteTemplates(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code)
 
 		// 验证
-		query, args, err := sqlx.In("SELECT COUNT(*) FROM template WHERE id IN (?)", []string{entity1.ID, entity2.ID})
+		query, args, err := sqlx.In("SELECT COUNT(*) FROM template WHERE id IN (?)", []string{entity1["id"].(string), entity2["id"].(string)})
 		assert.NoError(t, err)
 		query = testDB.Rebind(query)
 		var count int
@@ -480,8 +500,8 @@ func TestBatchDeleteTemplates(t *testing.T) {
 
 	t.Run("无效输入 - 空ID列表", func(t *testing.T) {
 		// 准备
-		deleteReq := template.DeleteTemplatesReq{
-			IDs: []string{},
+		deleteReq := map[string]any{
+			"ids": []string{},
 		}
 		bodyBytes, _ := json.Marshal(deleteReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/template/batch-delete", bytes.NewBuffer(bodyBytes))
@@ -523,15 +543,15 @@ func TestQueryListTemplates(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok)
 		assert.Greater(t, int(data["total"].(float64)), 0)
-		list, ok := data["list"].([]interface{})
+		list, ok := data["list"].([]any)
 		assert.True(t, ok)
 		assert.NotEmpty(t, list)
 		// 确保返回的第一个元素是我们刚创建的
-		firstItem := list[0].(map[string]interface{})
-		assert.Equal(t, entity.ID, firstItem["id"])
+		firstItem := list[0].(map[string]any)
+		assert.Equal(t, entity["id"], firstItem["id"])
 	})
 
 	t.Run("成功 - 带名称搜索", func(t *testing.T) {
@@ -539,7 +559,7 @@ func TestQueryListTemplates(t *testing.T) {
 		entity := setupTestTemplate(t)
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/template/list?name=Test Template", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/template/list?name="+entity["name"].(string), nil)
 		w := httptest.NewRecorder()
 		testRouter.ServeHTTP(w, req)
 
@@ -550,13 +570,13 @@ func TestQueryListTemplates(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok)
 		assert.Equal(t, float64(1), data["total"])
-		list, ok := data["list"].([]interface{})
+		list, ok := data["list"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, list, 1)
-		assert.Equal(t, entity.ID, list[0].(map[string]interface{})["id"])
+		assert.Equal(t, entity["id"], list[0].(map[string]any)["id"])
 	})
 
 	t.Run("成功 - 结果为空", func(t *testing.T) {
@@ -572,10 +592,10 @@ func TestQueryListTemplates(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.Code)
 
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok)
 		assert.Equal(t, float64(0), data["total"])
-		list, ok := data["list"].([]interface{})
+		list, ok := data["list"].([]any)
 		assert.True(t, ok)
 		assert.Empty(t, list)
 	})

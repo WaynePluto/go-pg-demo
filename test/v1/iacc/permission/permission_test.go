@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"go-pg-demo/internal/app"
-	"go-pg-demo/internal/modules/iacc/permission"
 	"go-pg-demo/pkgs"
 
 	"github.com/gin-gonic/gin"
@@ -48,27 +47,47 @@ func TestMain(m *testing.M) {
 }
 
 // 在数据库中创建一个权限用于测试，并注册一个清理函数以便在测试结束后删除它
-func setupTestPermission(t *testing.T, name string) permission.PermissionEntity {
+func setupTestPermission(t *testing.T, name string) map[string]any {
 	t.Helper()
 
-	metadata := permission.Metadata{
-		Method: stringPtr("get"),
-		Path:   stringPtr("/test/path"),
-	}
-	entity := permission.PermissionEntity{
-		Name:     name,
-		Type:     "api",
-		Metadata: metadata,
+	method := "get"
+	path := "/test/path"
+	metadata := map[string]any{
+		"method": &method,
+		"path":   &path,
 	}
 
+	// 将 metadata 序列化为 JSON 字符串，因为 PostgreSQL 需要 JSON 类型
+	metadataJSON, err := json.Marshal(metadata)
+	assert.NoError(t, err, "序列化 metadata 不应出错")
+
+	entity := map[string]any{
+		"name":     name,
+		"type":     "api",
+		"metadata": string(metadataJSON), // 存储为 JSON 字符串
+	}
+
+	// 定义一个结构体来接收返回的数据
+	type Result struct {
+		ID        string `db:"id"`
+		CreatedAt string `db:"created_at"`
+		UpdatedAt string `db:"updated_at"`
+	}
+
+	var result Result
 	// 直接在数据库中创建实体
-	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
-	err := testDB.QueryRowContext(context.Background(), query, entity.Name, entity.Type, entity.Metadata).Scan(&entity.ID, &entity.CreatedAt, &entity.UpdatedAt)
+	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES ($1, $2, $3::json) RETURNING id, created_at, updated_at`
+	err = testDB.QueryRowContext(context.Background(), query, entity["name"], entity["type"], entity["metadata"]).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
 	assert.NoError(t, err, "创建测试权限不应出错")
+
+	// 将结果合并到 entity map 中
+	entity["id"] = result.ID
+	entity["created_at"] = result.CreatedAt
+	entity["updated_at"] = result.UpdatedAt
 
 	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
 	t.Cleanup(func() {
-		_, err := testDB.ExecContext(context.Background(), "DELETE FROM iacc_permission WHERE id = $1", entity.ID)
+		_, err := testDB.ExecContext(context.Background(), "DELETE FROM iacc_permission WHERE id = $1", result.ID)
 		if err != nil {
 			t.Errorf("清理测试权限失败: %v", err)
 		}
@@ -80,14 +99,14 @@ func setupTestPermission(t *testing.T, name string) permission.PermissionEntity 
 func TestCreatePermission(t *testing.T) {
 	t.Run("成功", func(t *testing.T) {
 		// 准备
-		metadata := permission.Metadata{
-			Path:   stringPtr("/test/path"),
-			Method: stringPtr("post"),
+		metadata := map[string]any{
+			"path":   stringPtr("/test/path"),
+			"method": stringPtr("post"),
 		}
-		createReqBody := permission.CreatePermissionReq{
-			Name:     "新的测试权限",
-			Type:     "api",
-			Metadata: metadata,
+		createReqBody := map[string]any{
+			"name":     "新的测试权限",
+			"type":     "api",
+			"metadata": metadata,
 		}
 
 		bodyBytes, _ := json.Marshal(createReqBody)
@@ -122,13 +141,13 @@ func TestCreatePermission(t *testing.T) {
 
 	t.Run("无效输入 - 缺少名称", func(t *testing.T) {
 		// 准备
-		metadata := permission.Metadata{
-			Path:   stringPtr("/test/path"),
-			Method: stringPtr("post"),
+		metadata := map[string]any{
+			"path":   stringPtr("/test/path"),
+			"method": stringPtr("post"),
 		}
-		createReqBody := permission.CreatePermissionReq{
-			Type:     "api", // 缺少名称
-			Metadata: metadata,
+		createReqBody := map[string]any{
+			"type":     "api", // 缺少名称
+			"metadata": metadata,
 		}
 		bodyBytes, _ := json.Marshal(createReqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/permission", bytes.NewBuffer(bodyBytes))
@@ -159,7 +178,7 @@ func TestGetPermission(t *testing.T) {
 		entity := setupTestPermission(t, "测试权限-Get")
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/"+entity["id"].(string), nil)
 		req.Header.Set("Content-Type", "application/json")
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
@@ -177,10 +196,10 @@ func TestGetPermission(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
 
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
-		assert.Equal(t, entity.Name, data["name"], "获取到的权限名称应与创建时一致")
-		assert.Equal(t, entity.Type, data["type"], "获取到的权限类型应与创建时一致")
+		assert.Equal(t, entity["name"], data["name"], "获取到的权限名称应与创建时一致")
+		assert.Equal(t, entity["type"], data["type"], "获取到的权限类型应与创建时一致")
 	})
 
 	t.Run("未找到", func(t *testing.T) {
@@ -217,7 +236,7 @@ func TestUpdatePermission(t *testing.T) {
 			"name": updateName,
 		}
 		bodyBytes, _ := json.Marshal(updateReqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/v1/permission/"+entity.ID, bytes.NewBuffer(bodyBytes))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/permission/"+entity["id"].(string), bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
@@ -238,11 +257,15 @@ func TestUpdatePermission(t *testing.T) {
 		assert.Equal(t, int64(1), int64(updateResp.Data.(float64)), "应影响 1 行")
 
 		// 验证更新
-		var updatedPermission permission.PermissionEntity
-		err = testDB.GetContext(context.Background(), &updatedPermission, "SELECT * FROM iacc_permission WHERE id = $1", entity.ID)
+		type UpdatedPermission struct {
+			Name string `db:"name"`
+			Type string `db:"type"`
+		}
+		var updatedPermission UpdatedPermission
+		err = testDB.GetContext(context.Background(), &updatedPermission, "SELECT name, type FROM iacc_permission WHERE id = $1", entity["id"])
 		assert.NoError(t, err, "从数据库获取更新后的权限不应出错")
 		assert.Equal(t, updateName, updatedPermission.Name, "权限名称应已更新")
-		assert.Equal(t, entity.Type, updatedPermission.Type, "权限类型不应改变")
+		assert.Equal(t, entity["type"], updatedPermission.Type, "权限类型不应改变")
 	})
 }
 
@@ -252,7 +275,7 @@ func TestDeletePermission(t *testing.T) {
 		entity := setupTestPermission(t, "测试权限-Delete")
 
 		// 执行
-		req, _ := http.NewRequest(http.MethodDelete, "/v1/permission/"+entity.ID, nil)
+		req, _ := http.NewRequest(http.MethodDelete, "/v1/permission/"+entity["id"].(string), nil)
 		req.Header.Set("Content-Type", "application/json")
 		// 创建 TestUtil 实例
 		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
@@ -272,7 +295,7 @@ func TestDeletePermission(t *testing.T) {
 
 		// 验证删除
 		var count int
-		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM iacc_permission WHERE id = $1", entity.ID)
+		err = testDB.GetContext(context.Background(), &count, "SELECT COUNT(*) FROM iacc_permission WHERE id = $1", entity["id"])
 		assert.NoError(t, err, "查询已删除权限的计数不应出错")
 		assert.Equal(t, 0, count, "删除后权限在数据库中应不存在")
 	})
@@ -301,9 +324,9 @@ func TestQueryPermissionList(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, http.StatusOK, resp.Code, "响应码应该是 200")
-		
+
 		// 使用 map 来灵活处理响应数据
-		data, ok := resp.Data.(map[string]interface{})
+		data, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应数据应该是一个 map")
 		total, ok := data["total"]
 		assert.True(t, ok, "响应数据应该包含 total 字段")

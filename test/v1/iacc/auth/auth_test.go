@@ -16,7 +16,6 @@ import (
 	"go.uber.org/zap"
 
 	"go-pg-demo/internal/app"
-	"go-pg-demo/internal/modules/iacc/auth"
 	"go-pg-demo/pkgs"
 )
 
@@ -46,7 +45,10 @@ func TestAuthLogin(t *testing.T) {
 		// Arrange: 创建测试用户
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
-		reqBody := auth.LoginReq{Username: u.Username, Password: u.Password}
+		reqBody := map[string]any{
+			"username": u.Username,
+			"password": u.Password,
+		}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -61,7 +63,7 @@ func TestAuthLogin(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.NoError(t, err, "解析响应体不应出错")
 		assert.Equal(t, 200, resp.Code, "响应业务码应该是200")
-		dataMap, ok := resp.Data.(map[string]interface{})
+		dataMap, ok := resp.Data.(map[string]any)
 		assert.True(t, ok, "响应data应该是对象")
 		assert.NotEmpty(t, dataMap["access_token"], "应该返回access_token")
 		assert.NotEmpty(t, dataMap["refresh_token"], "应该返回refresh_token")
@@ -69,7 +71,9 @@ func TestAuthLogin(t *testing.T) {
 	})
 
 	t.Run("缺少用户名", func(t *testing.T) {
-		reqBody := auth.LoginReq{Password: "123456"}
+		reqBody := map[string]any{
+			"password": "123456",
+		}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -85,7 +89,10 @@ func TestAuthLogin(t *testing.T) {
 		// 创建正确用户但用错误密码
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
-		reqBody := auth.LoginReq{Username: u.Username, Password: "wrong"}
+		reqBody := map[string]any{
+			"username": u.Username,
+			"password": "wrong",
+		}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -98,7 +105,10 @@ func TestAuthLogin(t *testing.T) {
 	})
 
 	t.Run("用户不存在", func(t *testing.T) {
-		reqBody := auth.LoginReq{Username: "not_exist_user", Password: "xxx"}
+		reqBody := map[string]any{
+			"username": "not_exist_user",
+			"password": "xxx",
+		}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -117,7 +127,10 @@ func TestAuthRefreshToken(t *testing.T) {
 		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
 		u := util.SetupTestUser()
 		// 先登录获取 refresh_token
-		loginBody := auth.LoginReq{Username: u.Username, Password: u.Password}
+		loginBody := map[string]any{
+			"username": u.Username,
+			"password": u.Password,
+		}
 		loginBodyBytes, _ := json.Marshal(loginBody)
 		loginReq, _ := http.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewBuffer(loginBodyBytes))
 		loginReq.Header.Set("Content-Type", "application/json")
@@ -125,11 +138,13 @@ func TestAuthRefreshToken(t *testing.T) {
 		testRouter.ServeHTTP(w1, loginReq)
 		var loginResp pkgs.Response
 		_ = json.Unmarshal(w1.Body.Bytes(), &loginResp)
-		loginData := loginResp.Data.(map[string]interface{})
+		loginData := loginResp.Data.(map[string]any)
 		refreshToken := loginData["refresh_token"].(string)
 
 		// 使用 refresh_token 请求刷新
-		refreshReq := auth.RefreshTokenReq{RefreshToken: refreshToken}
+		refreshReq := map[string]any{
+			"refresh_token": refreshToken,
+		}
 		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -138,7 +153,7 @@ func TestAuthRefreshToken(t *testing.T) {
 		var resp pkgs.Response
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Equal(t, 200, resp.Code)
-		dataMap := resp.Data.(map[string]interface{})
+		dataMap := resp.Data.(map[string]any)
 		assert.NotEmpty(t, dataMap["access_token"], "应返回新的access_token")
 		assert.NotEmpty(t, dataMap["refresh_token"], "应返回新的refresh_token")
 	})
@@ -148,7 +163,9 @@ func TestAuthRefreshToken(t *testing.T) {
 		fakeClaims := jwt.MapClaims{"user_id": "some-user", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix()}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, fakeClaims)
 		badToken, _ := token.SignedString([]byte("wrong-secret"))
-		refreshReq := auth.RefreshTokenReq{RefreshToken: badToken}
+		refreshReq := map[string]any{
+			"refresh_token": badToken,
+		}
 		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -165,7 +182,9 @@ func TestAuthRefreshToken(t *testing.T) {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, fakeClaims)
 		// 使用正确 secret 但缺少 user_id
 		badToken, _ := token.SignedString([]byte("my-secret-key"))
-		refreshReq := auth.RefreshTokenReq{RefreshToken: badToken}
+		refreshReq := map[string]any{
+			"refresh_token": badToken,
+		}
 		bodyBytes, _ := json.Marshal(refreshReq)
 		req, _ := http.NewRequest(http.MethodPost, "/v1/auth/refresh-token", bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
@@ -191,13 +210,13 @@ func TestAuthUserDetail(t *testing.T) {
 		var resp pkgs.Response
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		assert.Equal(t, 200, resp.Code)
-		dataMap := resp.Data.(map[string]interface{})
+		dataMap := resp.Data.(map[string]any)
 		assert.Equal(t, u.ID, dataMap["id"], "返回的用户ID应与token对应")
 		assert.Equal(t, u.Username, dataMap["username"], "返回的用户名应与token对应")
 		// roles/permissions 可能为空数组或未定义，做安全转换
 		rolesRaw, ok := dataMap["roles"]
 		if ok && rolesRaw != nil {
-			if rolesSlice, ok2 := rolesRaw.([]interface{}); ok2 {
+			if rolesSlice, ok2 := rolesRaw.([]any); ok2 {
 				assert.Empty(t, rolesSlice, "当前用户未分配角色应返回空数组")
 			} else {
 				assert.Fail(t, "roles 字段类型不正确")
@@ -207,7 +226,7 @@ func TestAuthUserDetail(t *testing.T) {
 		}
 		permsRaw, ok := dataMap["permissions"]
 		if ok && permsRaw != nil {
-			if permsSlice, ok2 := permsRaw.([]interface{}); ok2 {
+			if permsSlice, ok2 := permsRaw.([]any); ok2 {
 				assert.Empty(t, permsSlice, "当前用户无权限应返回空数组")
 			} else {
 				assert.Fail(t, "permissions 字段类型不正确")
