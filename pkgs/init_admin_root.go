@@ -33,12 +33,12 @@ func InitAdminRoot(db *sqlx.DB, logger *zap.Logger) error {
 		}
 	}()
 
-	// 1. 检索或创建 admin 用户
+	// 1. 检索或创建 administrator 用户，密码是md5(123456)
 	var adminID string
-	err = tx.Get(&adminID, `SELECT id FROM iacc_user WHERE username = 'admin'`)
+	err = tx.Get(&adminID, `SELECT id FROM iacc_user WHERE username = 'administrator'`)
 	if err == sql.ErrNoRows {
 		logger.Info("admin 用户不存在，正在创建...")
-		err = tx.Get(&adminID, `INSERT INTO iacc_user (username, password) VALUES ('admin', '4a7d1ed414474e4033ac29ccb8653d9b') RETURNING id`)
+		err = tx.Get(&adminID, `INSERT INTO iacc_user (username, password) VALUES ('administrator', 'e10adc3949ba59abbe56e057f20f883e') RETURNING id`)
 		if err != nil {
 			return fmt.Errorf("创建 admin 用户失败: %w", err)
 		}
