@@ -109,6 +109,8 @@ type QueryListReq struct {
 	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100" label:"每页大小"`
 	Phone    string `form:"phone,omitempty" validate:"omitempty" label:"手机号"`
 	Username string `form:"username,omitempty" validate:"omitempty" label:"用户名"`
+	OrderBy  string `form:"orderBy,default=id" validate:"omitempty" label:"排序字段"`
+	Order    string `form:"order,default=desc" validate:"omitempty" label:"排序顺序"`
 }
 
 // 用户响应

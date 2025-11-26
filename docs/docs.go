@@ -88,6 +88,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/me": {
+            "get": {
+                "description": "返回当前登录用户的信息、角色和权限列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "当前用户详情",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/auth.UserDetailRes"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh-token": {
             "post": {
                 "description": "通过刷新令牌获取新的访问令牌",
@@ -323,7 +355,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/permission.PermissionListRes"
+                                            "$ref": "#/definitions/permission.QueryListRes"
                                         }
                                     }
                                 }
@@ -384,7 +416,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/permission.PermissionRes"
+                                            "$ref": "#/definitions/permission.GetByIDRes"
                                         }
                                     }
                                 }
@@ -450,7 +482,20 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -530,7 +575,7 @@ const docTemplate = `{
         },
         "/role": {
             "post": {
-                "description": "创建一个新角色",
+                "description": "创建角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -543,12 +588,12 @@ const docTemplate = `{
                 "summary": "创建角色",
                 "parameters": [
                     {
-                        "description": "创建角色的请求参数",
+                        "description": "创建角色请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/role.CreateRoleReq"
+                            "$ref": "#/definitions/role.CreateReq"
                         }
                     }
                 ],
@@ -586,9 +631,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/role/list": {
-            "get": {
-                "description": "根据条件分页获取角色列表",
+        "/role/batch-create": {
+            "post": {
+                "description": "批量创建角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -598,30 +643,21 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "分页查询角色",
+                "summary": "批量创建角色",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "页码",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "每页数量",
-                        "name": "pageSize",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "按名称模糊查询",
-                        "name": "name",
-                        "in": "query"
+                        "description": "批量创建角色请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/role.BatchCreateReq"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "获取成功，返回角色列表和总数",
+                        "description": "创建成功，返回角色ID列表",
                         "schema": {
                             "allOf": [
                                 {
@@ -631,7 +667,138 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/role.RoleListRes"
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/role/batch-delete": {
+            "post": {
+                "description": "批量删除角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role"
+                ],
+                "summary": "批量删除角色",
+                "parameters": [
+                    {
+                        "description": "批量删除角色请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/role.DeleteRolesReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功，返回影响行数",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/role/list": {
+            "get": {
+                "description": "获取角色列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role"
+                ],
+                "summary": "获取角色列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功，返回角色列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/role.QueryListRes"
                                         }
                                     }
                                 }
@@ -655,7 +822,7 @@ const docTemplate = `{
         },
         "/role/{id}": {
             "get": {
-                "description": "根据ID获取单个角色的详细信息",
+                "description": "根据ID获取角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -665,7 +832,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "获取角色详情",
+                "summary": "根据ID获取角色",
                 "parameters": [
                     {
                         "type": "string",
@@ -687,11 +854,17 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/role.RoleRes"
+                                            "$ref": "#/definitions/role.GetByIDRes"
                                         }
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "404": {
@@ -709,7 +882,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "根据ID更新角色的名称或描述",
+                "description": "根据ID更新角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -719,7 +892,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "更新角色信息",
+                "summary": "根据ID更新角色",
                 "parameters": [
                     {
                         "type": "string",
@@ -729,12 +902,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "更新角色的请求参数",
+                        "description": "更新角色请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/role.UpdateRoleReq"
+                            "$ref": "#/definitions/role.UpdateByIDReq"
                         }
                     }
                 ],
@@ -742,7 +915,20 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -760,7 +946,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "根据ID删除一个角色",
+                "description": "根据ID删除角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -770,7 +956,7 @@ const docTemplate = `{
                 "tags": [
                     "role"
                 ],
-                "summary": "删除角色",
+                "summary": "根据ID删除角色",
                 "parameters": [
                     {
                         "type": "string",
@@ -798,6 +984,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
                         }
                     },
                     "500": {
@@ -844,7 +1036,20 @@ const docTemplate = `{
                     "200": {
                         "description": "分配成功",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -882,7 +1087,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.CreateTemplateReq"
+                            "$ref": "#/definitions/template.CreateReq"
                         }
                     }
                 ],
@@ -940,7 +1145,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.CreateTemplatesReq"
+                            "$ref": "#/definitions/template.BatchCreateReq"
                         }
                     }
                 ],
@@ -1007,9 +1212,22 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "删除成功",
+                        "description": "删除成功，返回影响行数",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1060,6 +1278,20 @@ const docTemplate = `{
                         "description": "模板名称",
                         "name": "name",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "id",
+                        "description": "排序字段",
+                        "name": "orderBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "排序顺序",
+                        "name": "order",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1074,7 +1306,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/template.TemplateListRes"
+                                            "$ref": "#/definitions/template.QueryListRes"
                                         }
                                     }
                                 }
@@ -1130,7 +1362,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/template.TemplateRes"
+                                            "$ref": "#/definitions/template.GetByIDRes"
                                         }
                                     }
                                 }
@@ -1183,7 +1415,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/template.UpdateTemplateReq"
+                            "$ref": "#/definitions/template.UpdateByIDReq"
                         }
                     }
                 ],
@@ -1191,7 +1423,20 @@ const docTemplate = `{
                     "200": {
                         "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1284,7 +1529,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.CreateUserReq"
+                            "$ref": "#/definitions/user.CreateReq"
                         }
                     }
                 ],
@@ -1322,9 +1567,129 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/batch-create": {
+            "post": {
+                "description": "批量创建用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "批量创建用户",
+                "parameters": [
+                    {
+                        "description": "批量创建用户请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.BatchCreateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功，返回用户ID列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/batch-delete": {
+            "post": {
+                "description": "批量删除用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "批量删除用户",
+                "parameters": [
+                    {
+                        "description": "批量删除用户请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.DeleteUsersReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功，返回影响行数",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/user/list": {
             "get": {
-                "description": "获取系统中的用户列表，支持按手机号模糊搜索，并提供分页功能。",
+                "description": "获取系统中的用户列表，支持按手机号和用户名模糊搜索，并提供分页功能。",
                 "consumes": [
                     "application/json"
                 ],
@@ -1358,6 +1723,12 @@ const docTemplate = `{
                         "description": "手机号模糊搜索关键字",
                         "name": "phone",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "用户名模糊搜索关键字",
+                        "name": "username",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1372,7 +1743,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.UserListRes"
+                                            "$ref": "#/definitions/user.QueryListRes"
                                         }
                                     }
                                 }
@@ -1429,7 +1800,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/user.UserRes"
+                                            "$ref": "#/definitions/user.GetByIDRes"
                                         }
                                     }
                                 }
@@ -1483,7 +1854,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UpdateUserReq"
+                            "$ref": "#/definitions/user.UpdateByIDReq"
                         }
                     }
                 ],
@@ -1491,7 +1862,20 @@ const docTemplate = `{
                     "200": {
                         "description": "成功更新用户信息",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1593,7 +1977,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.AssignRolesToUserReq"
+                            "$ref": "#/definitions/user.AssignRolesReq"
                         }
                     }
                 ],
@@ -1601,7 +1985,20 @@ const docTemplate = `{
                     "200": {
                         "description": "成功为用户分配角色",
                         "schema": {
-                            "$ref": "#/definitions/pkgs.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -1763,35 +2160,7 @@ const docTemplate = `{
                 }
             }
         },
-        "permission.Metadata": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "method": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "permission.PermissionListRes": {
-            "type": "object",
-            "properties": {
-                "list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/permission.PermissionRes"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "permission.PermissionRes": {
+        "permission.GetByIDRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1814,9 +2183,66 @@ const docTemplate = `{
                 }
             }
         },
-        "permission.UpdatePermissionReq": {
+        "permission.Metadata": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "permission.PermissionItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/permission.Metadata"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "permission.QueryListRes": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/permission.PermissionItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "permission.UpdatePermissionReq": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
                 "metadata": {
                     "$ref": "#/definitions/permission.Metadata"
                 },
@@ -1855,7 +2281,22 @@ const docTemplate = `{
                 }
             }
         },
-        "role.CreateRoleReq": {
+        "role.BatchCreateReq": {
+            "type": "object",
+            "required": [
+                "roles"
+            ],
+            "properties": {
+                "roles": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/role.CreateReq"
+                    }
+                }
+            }
+        },
+        "role.CreateReq": {
             "type": "object",
             "required": [
                 "name"
@@ -1869,21 +2310,22 @@ const docTemplate = `{
                 }
             }
         },
-        "role.RoleListRes": {
+        "role.DeleteRolesReq": {
             "type": "object",
+            "required": [
+                "ids"
+            ],
             "properties": {
-                "list": {
+                "ids": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/role.RoleRes"
+                        "type": "string"
                     }
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },
-        "role.RoleRes": {
+        "role.GetByIDRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1903,10 +2345,50 @@ const docTemplate = `{
                 }
             }
         },
-        "role.UpdateRoleReq": {
+        "role.QueryListRes": {
             "type": "object",
             "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/role.RoleItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "role.RoleItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "role.UpdateByIDReq": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "name": {
@@ -1914,7 +2396,22 @@ const docTemplate = `{
                 }
             }
         },
-        "template.CreateTemplateReq": {
+        "template.BatchCreateReq": {
+            "type": "object",
+            "required": [
+                "templates"
+            ],
+            "properties": {
+                "templates": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/template.CreateReq"
+                    }
+                }
+            }
+        },
+        "template.CreateReq": {
             "type": "object",
             "required": [
                 "name"
@@ -1927,21 +2424,6 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 1000,
                     "minimum": 1
-                }
-            }
-        },
-        "template.CreateTemplatesReq": {
-            "type": "object",
-            "required": [
-                "templates"
-            ],
-            "properties": {
-                "templates": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/template.CreateTemplateReq"
-                    }
                 }
             }
         },
@@ -1960,21 +2442,7 @@ const docTemplate = `{
                 }
             }
         },
-        "template.TemplateListRes": {
-            "type": "object",
-            "properties": {
-                "list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/template.TemplateRes"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "template.TemplateRes": {
+        "template.GetByIDRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1994,9 +2462,49 @@ const docTemplate = `{
                 }
             }
         },
-        "template.UpdateTemplateReq": {
+        "template.QueryListRes": {
             "type": "object",
             "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/template.TemplateItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "template.TemplateItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "num": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "template.UpdateByIDReq": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2007,14 +2515,17 @@ const docTemplate = `{
                 }
             }
         },
-        "user.AssignRolesToUserReq": {
+        "user.AssignRolesReq": {
             "type": "object",
             "required": [
+                "id",
                 "role_ids"
             ],
             "properties": {
+                "id": {
+                    "type": "string"
+                },
                 "role_ids": {
-                    "description": "角色ID列表",
                     "type": "array",
                     "minItems": 1,
                     "items": {
@@ -2023,7 +2534,22 @@ const docTemplate = `{
                 }
             }
         },
-        "user.CreateUserReq": {
+        "user.BatchCreateReq": {
+            "type": "object",
+            "required": [
+                "users"
+            ],
+            "properties": {
+                "users": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/user.CreateReq"
+                    }
+                }
+            }
+        },
+        "user.CreateReq": {
             "type": "object",
             "required": [
                 "password",
@@ -2047,42 +2573,22 @@ const docTemplate = `{
                 }
             }
         },
-        "user.Profile": {
+        "user.DeleteUsersReq": {
             "type": "object",
-            "additionalProperties": true
-        },
-        "user.UpdateUserReq": {
-            "type": "object",
+            "required": [
+                "ids"
+            ],
             "properties": {
-                "password": {
-                    "description": "密码，前端进行MD5加密",
-                    "type": "string"
-                },
-                "profile": {
-                    "description": "个人信息",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/user.Profile"
-                        }
-                    ]
-                }
-            }
-        },
-        "user.UserListRes": {
-            "type": "object",
-            "properties": {
-                "list": {
+                "ids": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/user.UserRes"
+                        "type": "string"
                     }
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },
-        "user.UserRes": {
+        "user.GetByIDRes": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2098,6 +2604,75 @@ const docTemplate = `{
                     "$ref": "#/definitions/user.Profile"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.Profile": {
+            "type": "object",
+            "additionalProperties": true
+        },
+        "user.QueryListRes": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/user.UserItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "user.UpdateByIDReq": {
+            "type": "object",
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 11,
+                    "minLength": 11
+                },
+                "profile": {
+                    "$ref": "#/definitions/user.Profile"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "user.UserItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/user.Profile"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

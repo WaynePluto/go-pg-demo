@@ -227,6 +227,24 @@ func (r *Repository) BatchDelete(c *gin.Context) func(*DeleteUsersReq) mo.Result
 
 func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[QueryListRes] {
 	return func(req *QueryListReq) mo.Result[QueryListRes] {
+		// 校验排序字段
+		validOrderBy := map[string]bool{
+			"id":         true,
+			"username":   true,
+			"phone":      true,
+			"created_at": true,
+			"updated_at": true,
+		}
+		if !validOrderBy[req.OrderBy] {
+			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusBadRequest, "排序字段不存在"))
+		}
+
+		// 校验排序顺序
+		upperOrder := strings.ToUpper(req.Order)
+		if upperOrder != "ASC" && upperOrder != "DESC" {
+			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusBadRequest, "排序顺序参数错误"))
+		}
+
 		// 构建查询
 		params := map[string]any{
 			"limit":  req.PageSize,
@@ -276,7 +294,7 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 
 		// 查询列表
 		var entities []UserEntity
-		listQuery := `SELECT id, username, phone, profile, created_at, updated_at FROM "iacc_user"` + whereCondition + ` ORDER BY created_at DESC LIMIT :limit OFFSET :offset`
+		listQuery := `SELECT id, username, phone, profile, created_at, updated_at FROM "iacc_user"` + whereCondition + ` ORDER BY ` + req.OrderBy + ` ` + upperOrder + ` LIMIT :limit OFFSET :offset`
 		// 使用 NamedQuery 而不是 PrepareNamed
 		rows, err = r.db.NamedQueryContext(c.Request.Context(), listQuery, params)
 		if err != nil {

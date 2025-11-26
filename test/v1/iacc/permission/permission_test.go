@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"go-pg-demo/internal/app"
 	"go-pg-demo/pkgs"
@@ -334,7 +336,448 @@ func TestQueryPermissionList(t *testing.T) {
 	})
 }
 
+// 创建用于排序测试的权限
+func createSortTestPermission(t *testing.T, name string, pType string) map[string]any {
+	t.Helper()
+
+	method := "get"
+	path := "/test/path"
+	metadata := map[string]any{
+		"method": &method,
+		"path":   &path,
+	}
+
+	// 将 metadata 序列化为 JSON 字符串，因为 PostgreSQL 需要 JSON 类型
+	metadataJSON, err := json.Marshal(metadata)
+	assert.NoError(t, err, "序列化 metadata 不应出错")
+
+	entity := map[string]any{
+		"name":     name,
+		"type":     pType,
+		"metadata": string(metadataJSON), // 存储为 JSON 字符串
+	}
+
+	// 定义一个结构体来接收返回的数据
+	type Result struct {
+		ID        string `db:"id"`
+		CreatedAt string `db:"created_at"`
+		UpdatedAt string `db:"updated_at"`
+	}
+
+	var result Result
+	// 直接在数据库中创建实体
+	query := `INSERT INTO iacc_permission (name, type, metadata) VALUES ($1, $2, $3::json) RETURNING id, created_at, updated_at`
+	err = testDB.QueryRowContext(context.Background(), query, entity["name"], entity["type"], entity["metadata"]).Scan(&result.ID, &result.CreatedAt, &result.UpdatedAt)
+	assert.NoError(t, err, "创建测试权限不应出错")
+
+	// 将结果合并到 entity map 中
+	entity["id"] = result.ID
+	entity["created_at"] = result.CreatedAt
+	entity["updated_at"] = result.UpdatedAt
+
+	// 使用 t.Cleanup 注册清理函数，确保测试结束后数据被删除
+	t.Cleanup(func() {
+		_, err := testDB.ExecContext(context.Background(), "DELETE FROM iacc_permission WHERE id = $1", result.ID)
+		if err != nil {
+			t.Errorf("清理测试权限失败: %v", err)
+		}
+	})
+
+	return entity
+}
+
+func TestQueryListPermissions_Sort(t *testing.T) {
+	// 准备数据
+	id1 := createSortTestPermission(t, "SortTest_A", "api")
+	id2 := createSortTestPermission(t, "SortTest_B", "menu")
+	id3 := createSortTestPermission(t, "SortTest_C", "button")
+
+	t.Run("按 ID ASC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=id&order=asc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		// 应该只有三个结果
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, id1["id"], list[0].(map[string]any)["id"])
+			assert.Equal(t, id2["id"], list[1].(map[string]any)["id"])
+			assert.Equal(t, id3["id"], list[2].(map[string]any)["id"])
+		}
+	})
+
+	t.Run("按 ID DESC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=id&order=desc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, id3["id"], list[0].(map[string]any)["id"])
+			assert.Equal(t, id2["id"], list[1].(map[string]any)["id"])
+			assert.Equal(t, id1["id"], list[2].(map[string]any)["id"])
+		}
+	})
+
+	t.Run("按 Name ASC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=name&order=asc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, "SortTest_A", list[0].(map[string]any)["name"])
+			assert.Equal(t, "SortTest_B", list[1].(map[string]any)["name"])
+			assert.Equal(t, "SortTest_C", list[2].(map[string]any)["name"])
+		}
+	})
+
+	t.Run("按 Name DESC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=name&order=desc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, "SortTest_C", list[0].(map[string]any)["name"])
+			assert.Equal(t, "SortTest_B", list[1].(map[string]any)["name"])
+			assert.Equal(t, "SortTest_A", list[2].(map[string]any)["name"])
+		}
+	})
+
+	t.Run("按 Type ASC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=type&order=asc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, "api", list[0].(map[string]any)["type"])
+			assert.Equal(t, "button", list[1].(map[string]any)["type"])
+			assert.Equal(t, "menu", list[2].(map[string]any)["type"])
+		}
+	})
+
+	t.Run("按 Type DESC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=type&order=desc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序
+			assert.Equal(t, "menu", list[0].(map[string]any)["type"])
+			assert.Equal(t, "button", list[1].(map[string]any)["type"])
+			assert.Equal(t, "api", list[2].(map[string]any)["type"])
+		}
+	})
+
+	t.Run("按 CreatedAt ASC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=created_at&order=asc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序 - 使用时间戳比较函数
+			assert.True(t, compareTimestamps(id1["created_at"].(string), list[0].(map[string]any)["created_at"].(string)))
+			assert.True(t, compareTimestamps(id2["created_at"].(string), list[1].(map[string]any)["created_at"].(string)))
+			assert.True(t, compareTimestamps(id3["created_at"].(string), list[2].(map[string]any)["created_at"].(string)))
+		}
+	})
+
+	t.Run("按 CreatedAt DESC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=created_at&order=desc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序 - 使用时间戳比较函数
+			assert.True(t, compareTimestamps(id3["created_at"].(string), list[0].(map[string]any)["created_at"].(string)))
+			assert.True(t, compareTimestamps(id2["created_at"].(string), list[1].(map[string]any)["created_at"].(string)))
+			assert.True(t, compareTimestamps(id1["created_at"].(string), list[2].(map[string]any)["created_at"].(string)))
+		}
+	})
+
+	t.Run("按 UpdatedAt ASC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=updated_at&order=asc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序 - 使用时间戳比较函数
+			assert.True(t, compareTimestamps(id1["updated_at"].(string), list[0].(map[string]any)["updated_at"].(string)))
+			assert.True(t, compareTimestamps(id2["updated_at"].(string), list[1].(map[string]any)["updated_at"].(string)))
+			assert.True(t, compareTimestamps(id3["updated_at"].(string), list[2].(map[string]any)["updated_at"].(string)))
+		}
+	})
+
+	t.Run("按 UpdatedAt DESC 排序", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?name=SortTest_&orderBy=updated_at&order=desc", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok)
+		list, ok := data["list"].([]any)
+		assert.True(t, ok)
+
+		assert.Equal(t, 3, len(list))
+		if len(list) >= 3 {
+			// 验证排序顺序 - 使用时间戳比较函数
+			assert.True(t, compareTimestamps(id3["updated_at"].(string), list[0].(map[string]any)["updated_at"].(string)))
+			assert.True(t, compareTimestamps(id2["updated_at"].(string), list[1].(map[string]any)["updated_at"].(string)))
+			assert.True(t, compareTimestamps(id1["updated_at"].(string), list[2].(map[string]any)["updated_at"].(string)))
+		}
+	})
+
+	t.Run("无效 OrderBy", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?orderBy=invalid_field", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+		assert.Equal(t, "排序字段不存在", resp.Msg)
+	})
+
+	t.Run("无效 Order", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "/v1/permission/list?orderBy=name&order=invalid_order", nil)
+		req.Header.Set("Content-Type", "application/json")
+		// 创建 TestUtil 实例
+		testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		// 获取token
+		token := testUtil.GetAccessUserToken([]string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+		assert.Equal(t, "排序顺序参数错误", resp.Msg)
+	})
+}
+
 // 添加辅助函数用于创建字符串指针
 func stringPtr(s string) *string {
 	return &s
+}
+
+// compareTimestamps 比较两个时间戳字符串，只比较到秒级精度
+func compareTimestamps(t1, t2 string) bool {
+	// 解析时间戳
+	parsedT1, err1 := time.Parse(time.RFC3339Nano, t1)
+	parsedT2, err2 := time.Parse(time.RFC3339Nano, t2)
+
+	if err1 != nil || err2 != nil {
+		// 如果解析失败，尝试其他格式
+		parsedT1, err1 = time.Parse("2006-01-02 15:04:05.999999", t1)
+		parsedT2, err2 = time.Parse("2006-01-02 15:04:05.999999", t2)
+
+		if err1 != nil || err2 != nil {
+			// 如果还是失败，直接比较字符串（去掉微秒部分）
+			t1Sec := strings.Split(t1, ".")[0]
+			t2Sec := strings.Split(t2, ".")[0]
+			return t1Sec == t2Sec
+		}
+	}
+
+	// 比较到秒级精度
+	return parsedT1.Truncate(time.Second).Equal(parsedT2.Truncate(time.Second))
 }

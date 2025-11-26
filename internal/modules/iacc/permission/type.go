@@ -92,6 +92,8 @@ type QueryListReq struct {
 	PageSize int    `form:"pageSize,default=10" validate:"min=1,max=100" label:"每页大小"`
 	Name     string `form:"name,omitempty" validate:"omitempty" label:"权限名称"`
 	Type     string `form:"type,omitempty" validate:"omitempty" label:"权限类型"`
+	OrderBy  string `form:"orderBy,default=id" validate:"omitempty" label:"排序字段"`
+	Order    string `form:"order,default=desc" validate:"omitempty" label:"排序顺序"`
 }
 
 // 权限响应项
