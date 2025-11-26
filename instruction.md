@@ -26,7 +26,9 @@
 
 ## 代码文件要求
 - 同一个目录下的多个测试文件使用同一个包名，比如 `test/v1/template`目录下，两个测试代码都是 `package template_test`。
-- 同一个包下的公共变量、公共方法，都放到 [模块名]_base_test.go 代码下面，比如测试使用的公共变量 db、logger、router, 测试主函数TestMain。
+- 同一个包下的公共变量、公共方法，都放到 `[模块名]_base_test.go` 代码下面，比如测试使用的公共变量 db、logger、router, 测试主函数 TestMain、辅助函数等。
+- `test/v1/template` 目录下的测试代码已经符合重构要求了。
+- 最后检查一下，删除没有使用的辅助函数。
 
 ## 指令
-请你帮我重构一下 `test/v1/template` 目录下的测试代码。
+请你帮我重构一下 `test/v1/permission` 目录下的测试代码。
