@@ -213,6 +213,24 @@ func (r *Repository) BatchDelete(c *gin.Context) func(*DeleteTemplatesReq) mo.Re
 
 func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[QueryListRes] {
 	return func(req *QueryListReq) mo.Result[QueryListRes] {
+		// 校验排序字段
+		validOrderBy := map[string]bool{
+			"id":         true,
+			"name":       true,
+			"num":        true,
+			"created_at": true,
+			"updated_at": true,
+		}
+		if !validOrderBy[req.OrderBy] {
+			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusBadRequest, "排序字段不存在"))
+		}
+
+		// 校验排序顺序
+		upperOrder := strings.ToUpper(req.Order)
+		if upperOrder != "ASC" && upperOrder != "DESC" {
+			return mo.Err[QueryListRes](pkgs.NewApiError(http.StatusBadRequest, "排序顺序参数错误"))
+		}
+
 		// 构建查询
 		params := map[string]any{
 			"limit":  req.PageSize,
@@ -258,7 +276,7 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 
 		// 查询列表
 		var entities []TemplateEntity
-		listQuery := `SELECT id, name, num, created_at, updated_at FROM template` + whereCondition + ` ORDER BY id DESC LIMIT :limit OFFSET :offset`
+		listQuery := `SELECT id, name, num, created_at, updated_at FROM template` + whereCondition + ` ORDER BY ` + req.OrderBy + ` ` + upperOrder + ` LIMIT :limit OFFSET :offset`
 		// 使用 NamedQuery 而不是 PrepareNamed
 		rows, err = r.db.NamedQueryContext(c.Request.Context(), listQuery, params)
 		if err != nil {

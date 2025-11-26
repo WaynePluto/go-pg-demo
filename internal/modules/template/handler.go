@@ -189,6 +189,8 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 //	@Param    page    query int   false "页码"  default(1)
 //	@Param    pageSize  query int   false "每页数量"  default(10)
 //	@Param    name    query string  false "模板名称"
+//	@Param    orderBy query string  false "排序字段" default(id)
+//	@Param    order   query string  false "排序顺序" default(desc)
 //	@Success  200     {object}  pkgs.Response{data=QueryListRes}  "获取成功，返回模板列表"
 //	@Failure  400     {object}  pkgs.Response               "请求参数错误"
 //	@Failure  500     {object}  pkgs.Response               "服务器内部错误"
