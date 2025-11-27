@@ -19,6 +19,7 @@ type RoleHandler interface {
 	DeleteByID(c *gin.Context)
 	QueryList(c *gin.Context)
 	AssignPermission(c *gin.Context)
+	GetPermissions(c *gin.Context)
 }
 
 // 用户管理处理器接口

@@ -77,6 +77,7 @@ func (r *Router) RegisterIACCRole() {
 		roles.DELETE("/:id", r.RoleHandler.DeleteByID)
 		roles.GET("/list", r.RoleHandler.QueryList)
 		roles.POST("/:id/permission", r.RoleHandler.AssignPermission)
+		roles.GET("/:id/permission", r.RoleHandler.GetPermissions)
 	}
 }
 

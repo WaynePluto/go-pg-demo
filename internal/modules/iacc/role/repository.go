@@ -2,6 +2,7 @@ package role
 
 import (
 	"database/sql"
+	"encoding/json"
 	"go-pg-demo/pkgs"
 	"net/http"
 	"strings"
@@ -368,5 +369,83 @@ func (r *Repository) AssignPermissions(c *gin.Context) func(*AssignPermissionsBy
 		}
 
 		return mo.Ok(AssignPermissionsRes(len(req.PermissionIDs)))
+	}
+}
+
+func (r *Repository) GetPermissions(c *gin.Context) func(*GetRolePermissionsReq) mo.Result[GetRolePermissionsRes] {
+	return func(req *GetRolePermissionsReq) mo.Result[GetRolePermissionsRes] {
+		// 首先检查角色是否存在
+		var roleExists bool
+		checkRoleQuery := `SELECT EXISTS(SELECT 1 FROM iacc_role WHERE id = $1)`
+		err := r.db.GetContext(c.Request.Context(), &roleExists, checkRoleQuery, req.ID)
+		if err != nil {
+			r.logger.Error("检查角色存在性失败", zap.Error(err))
+			return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
+		}
+		if !roleExists {
+			return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusNotFound, "角色不存在"))
+		}
+
+		// 查询角色关联的权限
+		query := `
+			SELECT p.id, p.name, p.type, p.metadata, p.created_at, p.updated_at
+			FROM iacc_permission p
+			INNER JOIN iacc_role_permission rp ON p.id = rp.permission_id
+			WHERE rp.role_id = $1
+			ORDER BY p.created_at DESC
+		`
+
+		rows, err := r.db.QueryxContext(c.Request.Context(), query, req.ID)
+		if err != nil {
+			r.logger.Error("查询角色权限失败", zap.Error(err))
+			return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
+		}
+		defer rows.Close()
+
+		var permissions []PermissionItem
+		for rows.Next() {
+			var permission struct {
+				ID        string    `db:"id"`
+				Name      string    `db:"name"`
+				Type      string    `db:"type"`
+				Metadata  []byte    `db:"metadata"`
+				CreatedAt time.Time `db:"created_at"`
+				UpdatedAt time.Time `db:"updated_at"`
+			}
+
+			if err := rows.StructScan(&permission); err != nil {
+				r.logger.Error("扫描权限数据失败", zap.Error(err))
+				return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
+			}
+
+			// 解析 JSONB 元数据
+			var metadata map[string]interface{}
+			if len(permission.Metadata) > 0 {
+				if err := json.Unmarshal(permission.Metadata, &metadata); err != nil {
+					r.logger.Error("解析权限元数据失败", zap.Error(err))
+					return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
+				}
+			}
+
+			permissions = append(permissions, PermissionItem{
+				ID:        permission.ID,
+				Name:      permission.Name,
+				Type:      permission.Type,
+				Metadata:  metadata,
+				CreatedAt: permission.CreatedAt.Format(time.RFC3339),
+				UpdatedAt: permission.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+
+		// 检查是否有错误
+		if err = rows.Err(); err != nil {
+			r.logger.Error("遍历权限结果失败", zap.Error(err))
+			return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
+		}
+
+		return mo.Ok(GetRolePermissionsRes{
+			List:  permissions,
+			Total: int64(len(permissions)),
+		})
 	}
 }

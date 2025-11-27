@@ -227,3 +227,27 @@ func (h *Handler) AssignPermission(c *gin.Context) {
 		pkgs.HandleError[AssignPermissionsRes](c),
 	)
 }
+
+// GetPermissions 获取角色权限列表
+//
+//	@Summary  获取角色权限列表
+//	@Description  获取指定角色的权限列表
+//	@Tags   role
+//	@Accept   json
+//	@Produce  json
+//	@Param    id  path  string  true  "角色ID"
+//	@Success  200 {object}  pkgs.Response{data=GetRolePermissionsRes}  "获取成功，返回权限列表"
+//	@Failure  400 {object}  pkgs.Response           "请求参数错误"
+//	@Failure  404 {object}  pkgs.Response           "角色不存在"
+//	@Failure  500 {object}  pkgs.Response           "服务器内部错误"
+//	@Router   /role/{id}/permission [get]
+func (h *Handler) GetPermissions(c *gin.Context) {
+	result.Pipe2(
+		pkgs.BindUri[GetRolePermissionsReq](c),
+		result.FlatMap(pkgs.ValidateV2[GetRolePermissionsReq](h.validator)),
+		result.FlatMap(h.repository.GetPermissions(c)),
+	).Match(
+		pkgs.HandleSuccess[GetRolePermissionsRes](c),
+		pkgs.HandleError[GetRolePermissionsRes](c),
+	)
+}

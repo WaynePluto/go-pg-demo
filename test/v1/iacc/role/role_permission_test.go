@@ -93,3 +93,128 @@ func TestAssignPermission(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, resp.Code, "响应中的Code应该是400")
 	})
 }
+
+// TestRoleHandler_GetPermissions 测试查询角色权限列表功能
+// 包含三个子测试：成功查询角色权限列表、查询不存在角色的权限列表、查询没有权限的角色的权限列表
+func TestRoleHandler_GetPermissions(t *testing.T) {
+	t.Run("成功查询角色权限列表", func(t *testing.T) {
+		// 准备
+		// 创建测试角色
+		description := "权限查询测试角色"
+		role := createTestRole(t, "权限查询测试角色", &description)
+
+		// 创建测试权限
+		perm1 := createTestPermission(t, "查询权限1")
+		perm2 := createTestPermission(t, "查询权限2")
+
+		// 手动关联权限到角色
+		_, err := testDB.ExecContext(context.Background(),
+			"INSERT INTO iacc_role_permission (role_id, permission_id) VALUES ($1, $2), ($1, $3)",
+			role["id"], perm1["id"], perm2["id"])
+		assert.NoError(t, err, "应该能成功插入权限关联")
+
+		// 创建请求
+		req, _ := http.NewRequest(http.MethodGet, "/v1/role/"+role["id"].(string)+"/permission", nil)
+
+		// 获取token
+		token := getAuthToken(t, []string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		// 执行
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		// 断言
+		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是200")
+
+		// 解析响应
+		var resp pkgs.Response
+		err = json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err, "响应体应该能正确解析为Response结构体")
+
+		// 验证响应数据
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok, "响应数据应该是map类型")
+
+		// 验证权限列表
+		list, ok := data["list"].([]any)
+		assert.True(t, ok, "list字段应该是数组类型")
+		assert.Equal(t, 2, len(list), "应该返回两个权限")
+
+		// 验证总数
+		total, ok := data["total"].(float64) // JSON数字默认解析为float64
+		assert.True(t, ok, "total字段应该是数字类型")
+		assert.Equal(t, float64(2), total, "总数应该是2")
+	})
+
+	t.Run("查询不存在角色的权限列表", func(t *testing.T) {
+		// 准备
+		nonExistentRoleID := "00000000-0000-0000-0000-000000000000" // 不存在的UUID
+
+		// 创建请求
+		req, _ := http.NewRequest(http.MethodGet, "/v1/role/"+nonExistentRoleID+"/permission", nil)
+
+		// 获取token
+		token := getAuthToken(t, []string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		// 执行
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		// 断言
+		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是200（统一错误响应格式）")
+
+		// 解析响应
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err, "响应体应该能正确解析为Response结构体")
+		assert.Equal(t, http.StatusNotFound, resp.Code, "响应中的Code应该是404")
+	})
+
+	t.Run("查询没有权限的角色的权限列表", func(t *testing.T) {
+		// 准备
+		// 创建测试角色（不关联任何权限）
+		description := "无权限角色"
+		role := createTestRole(t, "无权限角色", &description)
+
+		// 创建请求
+		req, _ := http.NewRequest(http.MethodGet, "/v1/role/"+role["id"].(string)+"/permission", nil)
+
+		// 获取token
+		token := getAuthToken(t, []string{})
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		// 执行
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+
+		// 断言
+		assert.Equal(t, http.StatusOK, w.Code, "状态码应该是200")
+
+		// 解析响应
+		var resp pkgs.Response
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err, "响应体应该能正确解析为Response结构体")
+
+		// 验证响应数据
+		data, ok := resp.Data.(map[string]any)
+		assert.True(t, ok, "响应数据应该是map类型")
+
+		// 验证权限列表为空或nil
+		if data["list"] == nil {
+			// 如果list字段为nil，这也是可接受的
+			assert.Nil(t, data["list"], "list字段可以为nil")
+		} else {
+			// 如果list字段不为nil，则应该是数组类型且为空
+			list, ok := data["list"].([]any)
+			assert.True(t, ok, "list字段应该是数组类型")
+			assert.Equal(t, 0, len(list), "应该返回空列表")
+		}
+
+		// 验证总数为0
+		total, ok := data["total"].(float64) // JSON数字默认解析为float64
+		assert.True(t, ok, "total字段应该是数字类型")
+		assert.Equal(t, float64(0), total, "总数应该是0")
+	})
+}

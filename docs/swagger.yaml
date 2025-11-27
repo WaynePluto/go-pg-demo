@@ -214,6 +214,31 @@ definitions:
       updated_at:
         type: string
     type: object
+  role.GetRolePermissionsRes:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/role.PermissionItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  role.PermissionItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
   role.QueryListRes:
     properties:
       list:
@@ -927,6 +952,43 @@ paths:
       tags:
       - role
   /role/{id}/permission:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定角色的权限列表
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功，返回权限列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/pkgs.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/role.GetRolePermissionsRes'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "404":
+          description: 角色不存在
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/pkgs.Response'
+      summary: 获取角色权限列表
+      tags:
+      - role
     post:
       consumes:
       - application/json

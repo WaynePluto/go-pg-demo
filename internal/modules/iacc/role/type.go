@@ -105,3 +105,24 @@ type AssignPermissionsByIDReq struct {
 
 // 给角色分配权限的响应体
 type AssignPermissionsRes = int64
+
+// 查询角色权限列表的请求参数
+type GetRolePermissionsReq struct {
+	ID string `uri:"id" validate:"required,uuid" label:"角色ID"`
+}
+
+// 权限项结构体
+type PermissionItem struct {
+	ID        string                 `json:"id" label:"权限ID"`
+	Name      string                 `json:"name" label:"权限名称"`
+	Type      string                 `json:"type" label:"权限类型"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" label:"权限元数据"`
+	CreatedAt string                 `json:"created_at" label:"创建时间"`
+	UpdatedAt string                 `json:"updated_at" label:"更新时间"`
+}
+
+// 查询角色权限列表的响应体
+type GetRolePermissionsRes struct {
+	List  []PermissionItem `json:"list"`
+	Total int64            `json:"total"`
+}
