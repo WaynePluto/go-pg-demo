@@ -443,6 +443,11 @@ func (r *Repository) GetPermissions(c *gin.Context) func(*GetRolePermissionsReq)
 			return mo.Err[GetRolePermissionsRes](pkgs.NewApiError(http.StatusInternalServerError, "查询角色权限失败"))
 		}
 
+		// 确保 permissions 不为 nil，如果是 nil 则返回空数组
+		if permissions == nil {
+			permissions = []PermissionItem{}
+		}
+
 		return mo.Ok(GetRolePermissionsRes{
 			List:  permissions,
 			Total: int64(len(permissions)),
