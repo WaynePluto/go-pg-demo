@@ -137,3 +137,23 @@ type AssignRolesReq struct {
 
 // 给用户分配角色的响应 DTO
 type AssignRolesRes = int64
+
+// 获取用户角色列表的请求参数
+type GetRolesReq struct {
+	ID string `uri:"id" validate:"required,uuid" label:"用户ID"`
+}
+
+// 角色项结构体
+type RoleItem struct {
+	ID          string  `json:"id" label:"角色ID"`
+	Name        string  `json:"name" label:"角色名称"`
+	Description *string `json:"description,omitempty" label:"角色描述"`
+	CreatedAt   string  `json:"created_at" label:"创建时间"`
+	UpdatedAt   string  `json:"updated_at" label:"更新时间"`
+}
+
+// 获取用户角色列表的响应体
+type GetRolesRes struct {
+	List  []RoleItem `json:"list"`
+	Total int64      `json:"total"`
+}

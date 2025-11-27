@@ -32,6 +32,7 @@ type UserHandler interface {
 	BatchDelete(c *gin.Context)
 	QueryList(c *gin.Context)
 	AssignRole(c *gin.Context)
+	GetRoles(c *gin.Context)
 }
 
 // 认证处理器接口

@@ -391,3 +391,78 @@ func (r *Repository) AssignRoles(c *gin.Context) func(*AssignRolesReq) mo.Result
 		return mo.Ok(AssignRolesRes(int64(len(req.RoleIDs))))
 	}
 }
+
+func (r *Repository) GetRoles(c *gin.Context) func(*GetRolesReq) mo.Result[GetRolesRes] {
+	return func(req *GetRolesReq) mo.Result[GetRolesRes] {
+		// 查询总数
+		var total int64
+		countQuery := `
+			SELECT COUNT(*)
+			FROM "iacc_user_role" ur
+			JOIN "iacc_role" r ON ur.role_id = r.id
+			WHERE ur.user_id = $1
+		`
+		err := r.db.GetContext(c.Request.Context(), &total, countQuery, req.ID)
+		if err != nil {
+			r.logger.Error("统计用户角色数量失败", zap.Error(err))
+			return mo.Err[GetRolesRes](pkgs.NewApiError(http.StatusInternalServerError, "查询用户角色列表失败"))
+		}
+
+		// 如果没有角色，返回空列表
+		if total == 0 {
+			return mo.Ok(GetRolesRes{
+				List:  []RoleItem{},
+				Total: 0,
+			})
+		}
+
+		// 查询角色列表
+		var roles []RoleItem
+		listQuery := `
+			SELECT r.id, r.name, r.description, r.created_at, r.updated_at
+			FROM "iacc_user_role" ur
+			JOIN "iacc_role" r ON ur.role_id = r.id
+			WHERE ur.user_id = $1
+			ORDER BY r.created_at DESC
+		`
+		rows, err := r.db.QueryxContext(c.Request.Context(), listQuery, req.ID)
+		if err != nil {
+			r.logger.Error("查询用户角色列表失败", zap.Error(err))
+			return mo.Err[GetRolesRes](pkgs.NewApiError(http.StatusInternalServerError, "查询用户角色列表失败"))
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var role struct {
+				ID          string    `db:"id"`
+				Name        string    `db:"name"`
+				Description *string   `db:"description"`
+				CreatedAt   time.Time `db:"created_at"`
+				UpdatedAt   time.Time `db:"updated_at"`
+			}
+			err = rows.StructScan(&role)
+			if err != nil {
+				r.logger.Error("扫描角色数据失败", zap.Error(err))
+				return mo.Err[GetRolesRes](pkgs.NewApiError(http.StatusInternalServerError, "查询用户角色列表失败"))
+			}
+			roles = append(roles, RoleItem{
+				ID:          role.ID,
+				Name:        role.Name,
+				Description: role.Description,
+				CreatedAt:   role.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:   role.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+
+		if err = rows.Err(); err != nil {
+			r.logger.Error("查询用户角色列表失败", zap.Error(err))
+			return mo.Err[GetRolesRes](pkgs.NewApiError(http.StatusInternalServerError, "查询用户角色列表失败"))
+		}
+
+		// 返回结果
+		return mo.Ok(GetRolesRes{
+			List:  roles,
+			Total: total,
+		})
+	}
+}

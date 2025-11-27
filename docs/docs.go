@@ -2075,6 +2075,63 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/user/{id}/roles": {
+            "get": {
+                "description": "通过用户ID获取该用户拥有的所有角色信息，包括角色的基本信息和创建时间。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "获取指定用户的角色列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "UUID",
+                        "description": "用户唯一标识符(UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功获取用户角色列表",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/pkgs.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/user.GetRolesRes"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "提供的用户ID格式无效",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误，无法获取用户角色列表",
+                        "schema": {
+                            "$ref": "#/definitions/pkgs.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2709,6 +2766,20 @@ const docTemplate = `{
                 }
             }
         },
+        "user.GetRolesRes": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/user.RoleItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "user.Profile": {
             "type": "object",
             "additionalProperties": true
@@ -2724,6 +2795,26 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "user.RoleItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

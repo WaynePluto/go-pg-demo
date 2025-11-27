@@ -92,6 +92,7 @@ func (r *Router) RegisterIACCUser() {
 		users.POST("/batch-delete", r.UserHandler.BatchDelete)
 		users.GET("/list", r.UserHandler.QueryList)
 		users.POST("/:id/role", r.UserHandler.AssignRole)
+		users.GET("/:id/roles", r.UserHandler.GetRoles)
 	}
 }
 

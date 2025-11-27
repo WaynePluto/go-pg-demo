@@ -25,6 +25,8 @@
 //	    get: QueryList
 //	  /user/{id}/role:
 //	    post: AssignRoles
+//	  /user/{id}/roles:
+//	    get: GetRoles
 package user
 
 import (
@@ -242,5 +244,28 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	).Match(
 		pkgs.HandleSuccess[AssignRolesRes](c),
 		pkgs.HandleError[AssignRolesRes](c),
+	)
+}
+
+// GetRoles 获取用户角色列表
+//
+//	@Summary      获取指定用户的角色列表
+//	@Description  通过用户ID获取该用户拥有的所有角色信息，包括角色的基本信息和创建时间。
+//	@Tags         用户管理
+//	@Accept       json
+//	@Produce      json
+//	@Param        id   path      string                  true  "用户唯一标识符(UUID)"  Format(UUID)
+//	@Success      200  {object}  pkgs.Response{data=GetRolesRes} "成功获取用户角色列表"
+//	@Failure      400  {object}  pkgs.Response               "提供的用户ID格式无效"
+//	@Failure      500  {object}  pkgs.Response               "服务器内部错误，无法获取用户角色列表"
+//	@Router       /user/{id}/roles [get]
+func (h *Handler) GetRoles(c *gin.Context) {
+	result.Pipe2(
+		pkgs.BindUri[GetRolesReq](c),
+		result.FlatMap(pkgs.ValidateV2[GetRolesReq](h.validator)),
+		result.FlatMap(h.repository.GetRoles(c)),
+	).Match(
+		pkgs.HandleSuccess[GetRolesRes](c),
+		pkgs.HandleError[GetRolesRes](c),
 	)
 }
