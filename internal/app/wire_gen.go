@@ -38,7 +38,7 @@ func InitializeApp() (*App, func(), error) {
 		return nil, nil, err
 	}
 	loggerMiddleware := middlewares.NewLoggerMiddleware(logger)
-	authMiddleware := middlewares.NewAuthMiddleware(config, logger)
+	authMiddleware := middlewares.NewAuthMiddleware(config)
 	permissionMiddleware := middlewares.NewPermissionMiddleware(db, logger)
 	recoveryMiddleware := middlewares.NewRecoveryMiddleware(logger)
 	v := middlewares.NewUseMiddlewares(loggerMiddleware, authMiddleware, permissionMiddleware, recoveryMiddleware)

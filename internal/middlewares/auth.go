@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 
 	"go-pg-demo/pkgs"
 )
@@ -14,7 +13,7 @@ import (
 // JWT验证中间件
 type AuthMiddleware gin.HandlerFunc
 
-func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
+func NewAuthMiddleware(config *pkgs.Config) AuthMiddleware {
 	return func(c *gin.Context) {
 		// 白名单
 		if strings.Contains(c.Request.URL.Path, "/swagger") ||
@@ -51,7 +50,6 @@ func NewAuthMiddleware(config *pkgs.Config, logger *zap.Logger) AuthMiddleware {
 		})
 
 		if err != nil {
-			logger.Error("Failed to parse JWT token", zap.Error(err))
 			pkgs.Error(c, 401, "无效的令牌")
 			return
 		}
