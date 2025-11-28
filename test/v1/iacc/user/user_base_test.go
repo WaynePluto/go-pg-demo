@@ -135,21 +135,6 @@ func createSortTestUser(t *testing.T, username string, phone string) map[string]
 	return createTestUser(t, username, phone, "password123")
 }
 
-// getAuthToken 获取认证令牌
-// 参数:
-//   - t: 测试实例
-//   - permissions: 权限列表，空数组表示无权限访问令牌
-//
-// 返回值:
-//   - string: 认证令牌
-func getAuthToken(t *testing.T, permissions []string) string {
-	t.Helper()
-	// 创建 TestUtil 实例
-	testUtil := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
-	// 获取token
-	return testUtil.GetAccessUserToken(permissions)
-}
-
 // compareTimestamps 比较两个时间戳字符串，只比较到秒级精度
 func compareTimestamps(t1, t2 string) bool {
 	// 解析时间戳

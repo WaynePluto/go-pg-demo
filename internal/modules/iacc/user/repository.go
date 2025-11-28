@@ -23,7 +23,7 @@ func (r *Repository) Create(c *gin.Context) func(*CreateReq) mo.Result[CreateRes
 		// 创建实体
 		entity := &UserEntity{
 			Username: req.Username,
-			Phone:    req.Phone,
+			Phone:    &req.Phone,
 			Password: req.Password,
 			Profile:  req.Profile,
 		}
@@ -53,7 +53,7 @@ func (r *Repository) BatchCreate(c *gin.Context) func(*BatchCreateReq) mo.Result
 		for _, u := range req.Users {
 			entities = append(entities, UserEntity{
 				Username: u.Username,
-				Phone:    u.Phone,
+				Phone:    &u.Phone,
 				Password: u.Password,
 				Profile:  u.Profile,
 			})
@@ -121,10 +121,14 @@ func (r *Repository) GetByID(c *gin.Context) func(*GetByIDReq) mo.Result[GetByID
 		}
 
 		// 返回结果
+		phone := ""
+		if entity.Phone != nil {
+			phone = *entity.Phone
+		}
 		response := GetByIDRes{
 			ID:        entity.ID,
 			Username:  entity.Username,
-			Phone:     entity.Phone,
+			Phone:     phone,
 			Profile:   entity.Profile,
 			CreatedAt: entity.CreatedAt.Format(time.RFC3339),
 			UpdatedAt: entity.UpdatedAt.Format(time.RFC3339),
@@ -320,10 +324,14 @@ func (r *Repository) QueryList(c *gin.Context) func(*QueryListReq) mo.Result[Que
 		// 转换并返回结果
 		var responseEntities []UserItem
 		for _, entity := range entities {
+			phone := ""
+			if entity.Phone != nil {
+				phone = *entity.Phone
+			}
 			responseEntities = append(responseEntities, UserItem{
 				ID:        entity.ID,
 				Username:  entity.Username,
-				Phone:     entity.Phone,
+				Phone:     phone,
 				Profile:   entity.Profile,
 				CreatedAt: entity.CreatedAt.Format(time.RFC3339),
 				UpdatedAt: entity.UpdatedAt.Format(time.RFC3339),

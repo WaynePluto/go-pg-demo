@@ -36,7 +36,7 @@ type UserEntity struct {
 	CreatedAt time.Time `db:"created_at" label:"创建时间"`
 	UpdatedAt time.Time `db:"updated_at" label:"更新时间"`
 	Username  string    `db:"username" label:"用户名"`
-	Phone     string    `db:"phone" label:"手机号"`
+	Phone     *string   `db:"phone" label:"手机号"`
 	Password  string    `db:"password" label:"密码"`
 	Profile   Profile   `db:"profile" label:"个人信息"`
 }
