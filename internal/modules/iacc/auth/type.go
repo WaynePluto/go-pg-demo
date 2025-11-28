@@ -1,18 +1,19 @@
 package auth
 
 import (
+	"go-pg-demo/internal/modules/iacc/user"
 	"time"
 )
 
 // 数据库表iacc_user的表结构
 type UserEntity struct {
-	ID        string      `db:"id" label:"用户ID"`
-	CreatedAt time.Time   `db:"created_at" label:"创建时间"`
-	UpdatedAt time.Time   `db:"updated_at" label:"更新时间"`
-	Username  string      `db:"username" label:"用户名"`
-	Password  string      `db:"password" label:"密码"`
-	Phone     *string     `db:"phone" label:"手机号"`
-	Profile   interface{} `db:"profile" label:"个人信息"`
+	ID        string       `db:"id" label:"用户ID"`
+	CreatedAt time.Time    `db:"created_at" label:"创建时间"`
+	UpdatedAt time.Time    `db:"updated_at" label:"更新时间"`
+	Username  string       `db:"username" label:"用户名"`
+	Password  string       `db:"password" label:"密码"`
+	Phone     *string      `db:"phone" label:"手机号"`
+	Profile   user.Profile `db:"profile" label:"个人信息"`
 }
 
 // 数据库表iacc_role的表结构
@@ -64,7 +65,7 @@ type UserDetailRes struct {
 	ID          string        `json:"id" label:"用户ID"`
 	Username    string        `json:"username" label:"用户名"`
 	Phone       string        `json:"phone,omitempty" label:"手机号"`
-	Profile     interface{}   `json:"profile,omitempty" label:"个人信息"`
+	Profile     user.Profile  `json:"profile,omitempty" label:"个人信息"`
 	Roles       []UserRoleRes `json:"roles" label:"角色列表"`
 	Permissions []UserPermRes `json:"permissions" label:"权限列表"`
 	CreatedAt   string        `json:"created_at" label:"创建时间"`

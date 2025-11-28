@@ -2201,7 +2201,9 @@
                 "phone": {
                     "type": "string"
                 },
-                "profile": {},
+                "profile": {
+                    "$ref": "#/definitions/user.Profile"
+                },
                 "roles": {
                     "type": "array",
                     "items": {
@@ -2776,7 +2778,11 @@
         },
         "user.Profile": {
             "type": "object",
-            "additionalProperties": true
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
         },
         "user.QueryListRes": {
             "type": "object",

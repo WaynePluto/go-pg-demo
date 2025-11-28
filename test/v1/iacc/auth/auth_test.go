@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -234,6 +235,38 @@ func TestAuthUserDetail(t *testing.T) {
 		} else {
 			assert.True(t, ok, "permissions 字段应该存在")
 		}
+	})
+
+	t.Run("成功 - 验证Profile字段", func(t *testing.T) {
+		// 创建一个带有Profile数据的用户
+		util := &pkgs.TestUtil{Engine: testRouter, DB: testDB, T: t}
+		testUser := util.SetupTestUser()
+
+		// 添加Profile数据
+		email := "authprofile@example.com"
+		profileData := map[string]any{"email": email}
+		profileJSON, _ := json.Marshal(profileData)
+		_, err := testDB.ExecContext(context.Background(),
+			`UPDATE "iacc_user" SET profile = $1 WHERE id = $2`,
+			profileJSON, testUser.ID)
+		assert.NoError(t, err, "更新用户Profile不应出错")
+
+		token := util.GetAccessTokenByUser(testUser)
+		req, _ := http.NewRequest(http.MethodGet, "/v1/auth/user-detail", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+		var resp pkgs.Response
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Equal(t, 200, resp.Code)
+		dataMap := resp.Data.(map[string]any)
+		assert.Equal(t, testUser.ID, dataMap["id"], "返回的用户ID应与token对应")
+		assert.Equal(t, testUser.Username, dataMap["username"], "返回的用户名应与token对应")
+
+		// 验证Profile字段
+		profile, ok := dataMap["profile"].(map[string]any)
+		assert.True(t, ok, "Profile字段应该是一个map")
+		assert.Equal(t, email, profile["email"], "Profile中的email应该正确")
 	})
 
 	t.Run("未授权 - 缺少Authorization", func(t *testing.T) {

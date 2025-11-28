@@ -103,7 +103,7 @@ func (testUtil *TestUtil) SetupTestUser() user {
 	password := "strongpassword"
 	username := "testuser_" + uuid.NewString()[:8]
 	// 使用UUID的一部分生成唯一的手机号
-	phone := fmt.Sprintf("138%s", uuid.NewString()[:8])
+	phone := fmt.Sprintf("138%s", uuid.NewString()[:7])
 	u := user{
 		Username: username,
 		Password: password,

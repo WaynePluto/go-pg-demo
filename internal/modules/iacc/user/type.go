@@ -3,31 +3,56 @@ package user
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
 // Profile 是一个自定义类型，用于处理 JSONB 数据
-type Profile map[string]interface{}
+type Profile struct {
+	Email *string `json:"email,omitempty" label:"邮箱"`
+}
 
 // Value - 实现 driver.Valuer 接口
 func (p Profile) Value() (driver.Value, error) {
-	if p == nil {
-		return nil, nil
-	}
 	return json.Marshal(p)
 }
 
-// Scan - 实现 sql.Scanner 接口
-func (p *Profile) Scan(value interface{}) error {
+// Scan 实现 sql.Scanner 接口，用于从数据库中正确读取 Profile 类型
+func (p *Profile) Scan(value any) error {
 	if value == nil {
-		*p = nil
+		*p = Profile{}
 		return nil
 	}
-	b, ok := value.([]byte)
-	if !ok {
-		return json.Unmarshal([]byte(value.(string)), &p)
+
+	var bytes []byte
+	var err error
+
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		// 尝试将值转换为字符串，然后再转换为字节数组
+		strValue, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("无法将类型 %T 转换为 []byte 或 string", value)
+		}
+		bytes = []byte(strValue)
 	}
-	return json.Unmarshal(b, &p)
+
+	// 如果字节数组为空，返回空的 Profile
+	if len(bytes) == 0 {
+		*p = Profile{}
+		return nil
+	}
+
+	err = json.Unmarshal(bytes, p)
+	if err != nil {
+		return fmt.Errorf("解析 JSON 失败: %w", err)
+	}
+
+	return nil
 }
 
 // 数据库表 iacc_user 的表结构

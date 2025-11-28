@@ -18,8 +18,8 @@ func (p Metadata) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-// Scan 实现 sql.Scanner 接口，用于从数据库中正确读取Metadata类型
-func (p *Metadata) Scan(value interface{}) error {
+// Scan 实现 sql.Scanner 接口，用于从数据库中正确读取 Metadata 类型
+func (p *Metadata) Scan(value any) error {
 	if value == nil {
 		*p = Metadata{}
 		return nil

@@ -47,7 +47,8 @@ definitions:
         type: array
       phone:
         type: string
-      profile: {}
+      profile:
+        $ref: '#/definitions/user.Profile'
       roles:
         items:
           $ref: '#/definitions/auth.UserRoleRes'
@@ -426,7 +427,9 @@ definitions:
         type: integer
     type: object
   user.Profile:
-    additionalProperties: true
+    properties:
+      email:
+        type: string
     type: object
   user.QueryListRes:
     properties:

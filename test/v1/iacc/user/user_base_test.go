@@ -132,6 +132,9 @@ func createTestUser(t *testing.T, username, phone, password string) map[string]a
 // createSortTestUser 创建用于排序测试的用户
 func createSortTestUser(t *testing.T, username string, phone string) map[string]any {
 	t.Helper()
+	if phone == "" {
+		phone = fmt.Sprintf("138%s", uuid.NewString()[:8])
+	}
 	return createTestUser(t, username, phone, "password123")
 }
 

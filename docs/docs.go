@@ -2207,7 +2207,9 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
-                "profile": {},
+                "profile": {
+                    "$ref": "#/definitions/user.Profile"
+                },
                 "roles": {
                     "type": "array",
                     "items": {
@@ -2782,7 +2784,11 @@ const docTemplate = `{
         },
         "user.Profile": {
             "type": "object",
-            "additionalProperties": true
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
         },
         "user.QueryListRes": {
             "type": "object",
