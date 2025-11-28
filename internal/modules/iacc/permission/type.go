@@ -2,7 +2,7 @@ package permission
 
 import (
 	"database/sql/driver"
-	"encoding/json"
+	"go-pg-demo/pkgs"
 	"time"
 )
 
@@ -15,21 +15,12 @@ type Metadata struct {
 
 // Value 实现 driver.Valuer 接口，用于将Metadata类型正确存储到数据库中
 func (p Metadata) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	return pkgs.GenericJSONValue(p)
 }
 
 // Scan 实现 sql.Scanner 接口，用于从数据库中正确读取 Metadata 类型
 func (p *Metadata) Scan(value any) error {
-	if value == nil {
-		*p = Metadata{}
-		return nil
-	}
-
-	b, ok := value.([]byte)
-	if !ok {
-		return json.Unmarshal([]byte(value.(string)), &p)
-	}
-	return json.Unmarshal(b, &p)
+	return pkgs.GenericJSONScan(p, value)
 }
 
 // 数据库表Permission的表结构

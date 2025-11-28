@@ -2,8 +2,7 @@ package user
 
 import (
 	"database/sql/driver"
-	"encoding/json"
-	"fmt"
+	"go-pg-demo/pkgs"
 	"time"
 )
 
@@ -14,45 +13,12 @@ type Profile struct {
 
 // Value - 实现 driver.Valuer 接口
 func (p Profile) Value() (driver.Value, error) {
-	return json.Marshal(p)
+	return pkgs.GenericJSONValue(p)
 }
 
 // Scan 实现 sql.Scanner 接口，用于从数据库中正确读取 Profile 类型
 func (p *Profile) Scan(value any) error {
-	if value == nil {
-		*p = Profile{}
-		return nil
-	}
-
-	var bytes []byte
-	var err error
-
-	switch v := value.(type) {
-	case []byte:
-		bytes = v
-	case string:
-		bytes = []byte(v)
-	default:
-		// 尝试将值转换为字符串，然后再转换为字节数组
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("无法将类型 %T 转换为 []byte 或 string", value)
-		}
-		bytes = []byte(strValue)
-	}
-
-	// 如果字节数组为空，返回空的 Profile
-	if len(bytes) == 0 {
-		*p = Profile{}
-		return nil
-	}
-
-	err = json.Unmarshal(bytes, p)
-	if err != nil {
-		return fmt.Errorf("解析 JSON 失败: %w", err)
-	}
-
-	return nil
+	return pkgs.GenericJSONScan(p, value)
 }
 
 // 数据库表 iacc_user 的表结构
@@ -143,7 +109,7 @@ type UserItem struct {
 	ID        string  `json:"id" label:"用户ID"`
 	Username  string  `json:"username" label:"用户名"`
 	Phone     string  `json:"phone" label:"手机号"`
-	Profile   Profile `json:"profile,omitempty" label:"个人信息"`
+	Profile   Profile `json:"profile" label:"个人信息"`
 	CreatedAt string  `json:"created_at" label:"创建时间"`
 	UpdatedAt string  `json:"updated_at" label:"更新时间"`
 }
